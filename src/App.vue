@@ -1,5 +1,6 @@
 <script setup>
-import { reactive } from 'vue'
+import { reactive, watchEffect, onMounted } from 'vue'
+import { useTime } from './services/useTime.js'
 
 import zzzLogo2 from './assets/zzzLogo.png'
 import blueArchiveLogo from './assets/ba.svg'
@@ -7,7 +8,6 @@ import gfl2Logo from './assets/gfl2-logo.png'
 import Aklogo from './assets/akLogo.png'
 
 import Navbar from './components/NavBar.vue'
-import { useTime } from './services/useTime.js'
 
 const { formattedTime, formattedDateTime, getTimeUntilReset } = useTime()
 
@@ -16,31 +16,75 @@ const games = reactive([
     name: 'GFL',
     done: false,
     image: gfl2Logo,
-    resetTime: '16:00',
-    lastReset: null,
+    resetTime: '17:15',
   },
   {
     name: 'BA',
     done: false,
     image: blueArchiveLogo,
     resetTime: '02:00',
-    lastReset: null,
   },
   {
     name: 'ZZZ',
     done: false,
     image: zzzLogo2,
     resetTime: '03:00',
-    lastReset: null,
   },
   {
     name: 'AK',
     done: false,
     image: Aklogo,
     resetTime: '18:00',
-    lastReset: null,
   },
 ])
+
+// --- Load from localStorage if available ---
+const savedState = JSON.parse(localStorage.getItem('gacha-checklist'))
+if (savedState) {
+  for (const game of games) {
+    const saved = savedState.find((g) => g.name === game.name)
+    if (saved) {
+      game.done = saved.done
+    }
+  }
+}
+
+// --- Save to localStorage whenever changed ---
+watchEffect(() => {
+  const saveData = games.map((game) => ({
+    name: game.name,
+    done: game.done,
+  }))
+  localStorage.setItem('gacha-checklist', JSON.stringify(saveData))
+})
+
+// Helper to get today's date string
+function todayDateString() {
+  return new Date().toLocaleDateString()
+}
+
+function shouldResetGame(game) {
+  const lastResetKey = `reset-${game.name}`
+  const lastResetDate = localStorage.getItem(lastResetKey)
+
+  const now = new Date()
+  const [hr, min] = game.resetTime.split(':').map(Number)
+  const resetTime = new Date(now)
+  resetTime.setHours(hr, min, 0, 0)
+
+  if (now >= resetTime && lastResetDate !== todayDateString()) {
+    // Time has passed and hasn't reset yet today
+    game.done = false
+    localStorage.setItem(lastResetKey, todayDateString())
+  }
+}
+
+// Periodically check if reset is needed
+onMounted(() => {
+  setInterval(() => {
+    games.forEach((game) => shouldResetGame(game))
+  }, 1000 * 60) // check every minute
+})
 </script>
 
 <style scoped>
@@ -76,9 +120,6 @@ img {
 .card:hover {
   transform: scale(1.04);
 }
-
-
-
 </style>
 
 <template>

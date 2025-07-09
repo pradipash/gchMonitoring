@@ -7,8 +7,8 @@ const { formattedDateTime } = useTime()
 <style scoped>
 .title {
   font-family: 'Merriweather', serif;
-  font-size: xx-large;
-  font-weight: bold;
+  font-size: 30px;
+  font-weight: 900;
 }
 
 .date-title {
