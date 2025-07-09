@@ -16,6 +16,8 @@ const formattedDateTime = computed(() => {
 })
 
 function getTimeUntilReset(resetTime) {
+  if (typeof resetTime !== 'string') return 'Invalid reset time'
+
   const now = currentTime.value
   const [hourStr, minuteStr] = resetTime.split(':')
   const resetHour = parseInt(hourStr)
@@ -35,6 +37,8 @@ function getTimeUntilReset(resetTime) {
 
   return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`
 }
+
+
 
 export function useTime() {
   return {
