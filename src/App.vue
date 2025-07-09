@@ -128,7 +128,7 @@ img {
 
   <div class="container py-2">
     <p class="text-center mt-3">
-      🕒 Current time: {{ formattedTime }} {{ formattedDateTime /*change this into at navbar*/ }}
+      🕒 Current time: {{ formattedTime }} {{ formattedDateTime }}
     </p>
 
     <div class="row g-4">

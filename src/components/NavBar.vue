@@ -21,7 +21,7 @@ const { formattedDateTime } = useTime()
     <div class="container">
       <div class="d-flex align-items-center">
         <router-link class="navbar-brand fw-bold me-3 title" to="/"
-          >Placeholder Tracker</router-link
+          >Gacha Reset Tracker</router-link
         >
         <span class="text-muted mx-4 date-title">{{ formattedDateTime }}</span>
       </div>

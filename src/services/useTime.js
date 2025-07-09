@@ -8,7 +8,7 @@ setInterval(() => {
 }, 1000)
 
 const formattedTime = computed(() => {
-  return currentTime.value.toLocaleTimeString()
+  return currentTime.value.toLocaleTimeString('en-US', { hour12: false })
 })
 
 const formattedDateTime = computed(() => {
