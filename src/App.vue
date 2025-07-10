@@ -16,7 +16,7 @@ const games = reactive([
     name: 'GFL',
     done: false,
     image: gfl2Logo,
-    resetTime: '17:15',
+    resetTime: '16:00',
   },
   {
     name: 'BA',
@@ -127,9 +127,7 @@ img {
   <router-view />
 
   <div class="container py-2">
-    <p class="text-center mt-3">
-      🕒 Current time: {{ formattedTime }} {{ formattedDateTime }}
-    </p>
+    <p class="text-center mt-3">🕒 Current time: {{ formattedTime }} {{ formattedDateTime }}</p>
 
     <div class="row g-4">
       <div class="col-12 col-md-6" v-for="game in games" :key="game.name">

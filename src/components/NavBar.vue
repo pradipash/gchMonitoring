@@ -12,21 +12,27 @@ const { formattedDateTime } = useTime()
 }
 
 .date-title {
-  font-size: medium;
+  font-size: small;
+}
+
+.gradient-nav {
+  /* fallback for old browsers */
+  background: #c9d2e4;
+
+  /* Chrome 10-25, Safari 5.1-6 */
+  background: -webkit-linear-gradient(to left, rgba(201, 210, 228, 1), rgba(249, 251, 253, 1));
+
+  /* W3C, IE 10+/ Edge, Firefox 16+, Chrome 26+, Opera 12+, Safari 7+ */
+  background: linear-gradient(to left, rgba(201, 210, 228, 1), rgba(249, 251, 253, 1));
 }
 </style>
 
 <template>
-  <nav class="navbar navbar-expand-lg bg-body-tertiary mb-4">
+  <nav class="navbar gradient-nav navbar-expand-lg bg-body-tertiary mb-4 bb-2">
     <div class="container">
-      <div class="d-flex align-items-center">
-        <router-link class="navbar-brand fw-bold me-3 title" to="/"
-          >Gacha Reset Tracker</router-link
-        >
-        <span class="text-muted mx-4 date-title">{{ formattedDateTime }}</span>
-      </div>
-      <div class="d-flex gap-2">
-        <router-link class="btn btn-outline-primary" to="/">Home</router-link>
+      <div class="d-flex flex-column align-items-start">
+        <div class="navbar-brand fw-bold title mb-0" to="/">Gacha Reset Tracker</div>
+        <span class="text-muted date-title" style="margin-top: -10px">{{ formattedDateTime }}</span>
       </div>
     </div>
   </nav>
