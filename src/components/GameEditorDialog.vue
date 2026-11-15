@@ -440,7 +440,6 @@ select {
   display: grid;
   place-items: center;
   overflow: hidden;
-  padding: 0.25rem;
   font-size: 0.85rem;
   font-weight: 700;
   color: var(--text-muted);
@@ -449,7 +448,7 @@ select {
 .icon-preview img {
   width: 100%;
   height: 100%;
-  object-fit: contain;
+  object-fit: cover;
 }
 
 .checkbox-field {

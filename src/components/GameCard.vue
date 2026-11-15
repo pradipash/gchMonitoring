@@ -216,13 +216,12 @@ const initials = computed(() => {
   display: grid;
   place-items: center;
   overflow: hidden;
-  padding: 0.25rem;
 }
 
 .game-icon {
   width: 100%;
   height: 100%;
-  object-fit: contain;
+  object-fit: cover;
 }
 
 .icon-fallback {

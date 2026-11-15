@@ -5,7 +5,7 @@ export const DEFAULT_GAMES = [
     id: 'ba',
     name: 'Blue Archive',
     server: 'Global',
-    iconUrl: `${BASE}icons/ba.svg`,
+    iconUrl: `${BASE}icons/ba.png`,
     resetHour: 4,
     resetMinute: 0,
     utcOffsetMin: 540, // UTC+9 -> 02:00 UTC+7

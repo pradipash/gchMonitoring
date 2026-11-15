@@ -26,6 +26,18 @@ export function useGames(userRef) {
 
   let unsubscribe = null
   const seededCheckDone = new Set()
+  const migratedIcons = new Set()
+
+  function migrateLegacyIcons(uid, list) {
+    for (const game of list) {
+      if (migratedIcons.has(game.id)) continue
+      if (typeof game.iconUrl === 'string' && game.iconUrl.endsWith('/icons/ba.svg')) {
+        migratedIcons.add(game.id)
+        const nextUrl = game.iconUrl.replace(/\/icons\/ba\.svg$/, '/icons/ba.png')
+        updateDoc(doc(db, 'users', uid, 'games', game.id), { iconUrl: nextUrl }).catch(() => {})
+      }
+    }
+  }
 
   async function seedDefaultsIfNeeded(uid) {
     if (seededCheckDone.has(uid)) return
@@ -82,6 +94,8 @@ export function useGames(userRef) {
             seedDefaultsIfNeeded(uid).catch((err) => {
               error.value = err?.message || 'Could not seed default games.'
             })
+          } else {
+            migrateLegacyIcons(uid, games.value)
           }
         },
         (err) => {
