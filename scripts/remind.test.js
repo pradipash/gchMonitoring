@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { findDueGames, formatDiscordMessage } from './remind.mjs'
+import { findDueGames, formatDiscordMessage } from '../src/lib/remind.js'
 
 describe('reminder selection and dedupe', () => {
   const now = new Date('2026-11-15T09:30:00Z')

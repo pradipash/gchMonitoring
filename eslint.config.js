@@ -29,6 +29,15 @@ export default defineConfig([
     },
   },
 
+  {
+    files: ['worker/**/*.js'],
+    languageOptions: {
+      globals: {
+        ...globals.serviceworker,
+      },
+    },
+  },
+
   js.configs.recommended,
   ...pluginVue.configs['flat/essential'],
   skipFormatting,

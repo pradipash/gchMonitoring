@@ -8,7 +8,7 @@
     "build": "vite build",
     "preview": "vite preview",
     "lint": "eslint . --fix",
-    "format": "prettier --write src/ scripts/",
+    "format": "prettier --write src/ scripts/ worker/",
     "test": "vitest run",
     "remind": "node scripts/remind.mjs",
     "deploy": "vite build && gh-pages -d dist"
