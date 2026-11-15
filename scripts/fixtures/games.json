@@ -1,0 +1,50 @@
+[
+  {
+    "id": "ak-due",
+    "name": "Arknights",
+    "server": "EN",
+    "resetHour": 4,
+    "resetMinute": 0,
+    "utcOffsetMin": -420,
+    "remindBeforeMin": 180,
+    "remindersEnabled": true,
+    "lastDoneAt": null,
+    "lastRemindedFor": null
+  },
+  {
+    "id": "gfl2-already-reminded",
+    "name": "Girls Frontline 2",
+    "server": "Darkwinter",
+    "resetHour": 5,
+    "resetMinute": 0,
+    "utcOffsetMin": -240,
+    "remindBeforeMin": 120,
+    "remindersEnabled": true,
+    "lastDoneAt": null,
+    "lastRemindedFor": "2026-11-15T09:00:00.000Z"
+  },
+  {
+    "id": "ba-done",
+    "name": "Blue Archive",
+    "server": "Global",
+    "resetHour": 4,
+    "resetMinute": 0,
+    "utcOffsetMin": 540,
+    "remindBeforeMin": 1440,
+    "remindersEnabled": true,
+    "lastDoneAt": "2026-11-15T08:00:00.000Z",
+    "lastRemindedFor": null
+  },
+  {
+    "id": "zzz-disabled",
+    "name": "Zenless Zone Zero",
+    "server": "Asia",
+    "resetHour": 4,
+    "resetMinute": 0,
+    "utcOffsetMin": 480,
+    "remindBeforeMin": 1440,
+    "remindersEnabled": false,
+    "lastDoneAt": null,
+    "lastRemindedFor": null
+  }
+]
