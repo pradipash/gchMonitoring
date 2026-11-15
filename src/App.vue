@@ -1,5 +1,4 @@
 <script setup>
-import { reactive, watchEffect, onMounted } from 'vue'
 import { useTime } from './services/useTime.js'
 
 import zzzLogo2 from './assets/zzzLogo.png'
@@ -7,11 +6,33 @@ import blueArchiveLogo from './assets/ba.svg'
 import gfl2Logo from './assets/gfl2-logo.png'
 import Aklogo from './assets/akLogo.png'
 
+import { useCollection } from 'vuefire'
+import { collection } from 'firebase/firestore'
+import { db } from './firebase'
+import { updateDoc, doc } from 'firebase/firestore'
+
 import Navbar from './components/NavBar.vue'
+
+async function toggleDone(game) {
+  const gameRef = doc(db, 'games', game.name)
+  await updateDoc(gameRef, {
+    done: !game.done
+  })
+}
 
 const { formattedTime, formattedDateTime, getTimeUntilReset } = useTime()
 
-const games = reactive([
+const gameImages = {
+  GFL: gfl2Logo,
+  BA: blueArchiveLogo,
+  ZZZ: zzzLogo2,
+  AK: Aklogo
+}
+
+
+const games = useCollection(collection(db, 'games'))
+  /*
+  ([
   {
     name: 'GFL',
     done: false,
@@ -38,53 +59,9 @@ const games = reactive([
   },
 ])
 
-// --- Load from localStorage if available ---
-const savedState = JSON.parse(localStorage.getItem('gacha-checklist'))
-if (savedState) {
-  for (const game of games) {
-    const saved = savedState.find((g) => g.name === game.name)
-    if (saved) {
-      game.done = saved.done
-    }
-  }
-}
+  // USING FIREBASE INSTEAD
+  */
 
-// --- Save to localStorage whenever changed ---
-watchEffect(() => {
-  const saveData = games.map((game) => ({
-    name: game.name,
-    done: game.done,
-  }))
-  localStorage.setItem('gacha-checklist', JSON.stringify(saveData))
-})
-
-// Helper to get today's date string
-function todayDateString() {
-  return new Date().toLocaleDateString()
-}
-
-function shouldResetGame(game) {
-  const lastResetKey = `reset-${game.name}`
-  const lastResetDate = localStorage.getItem(lastResetKey)
-
-  const now = new Date()
-  const [hr, min] = game.resetTime.split(':').map(Number)
-  const resetTime = new Date(now)
-  resetTime.setHours(hr, min, 0, 0)
-
-  if (now >= resetTime && lastResetDate !== todayDateString()) {
-    // Time has passed and hasn't reset yet today
-    game.done = false
-    localStorage.setItem(lastResetKey, todayDateString())
-  }
-}
-
-// Periodically check if reset is needed
-onMounted(() => {
-  setInterval(() => {
-    games.forEach((game) => shouldResetGame(game))
-  }, 1000 * 60) // check every minute
-})
 </script>
 
 <style scoped>
@@ -134,13 +111,13 @@ img {
         <div
           class="card cursor-box zoom-in"
           :class="{ 'bg-success text-white': game.done }"
-          @click="game.done = !game.done"
+          @click="toggleDone(game)"
           style="cursor: pointer"
         >
           <div class="card-body gradient-card">
             <div class="row">
               <div class="col-4 d-flex justify-content-center align-items-center border-end">
-                <img :src="game.image" class="img-fluid rounded" />
+                <img :src="gameImages[game.name]" class="img-fluid rounded" />
               </div>
               <div class="col-8">
                 <h5 class="card-title fw-bold">{{ game.name }}</h5>
