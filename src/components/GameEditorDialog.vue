@@ -23,6 +23,7 @@ const form = reactive({
   utcOffsetMin: 480,
   remindBeforeMin: DEFAULT_REMIND_BEFORE_MIN,
   remindersEnabled: true,
+  hidden: false,
 })
 
 const TIMEZONE_OPTIONS = [
@@ -62,6 +63,7 @@ function resetForm(game = null) {
     form.utcOffsetMin = game.utcOffsetMin ?? 480
     form.remindBeforeMin = game.remindBeforeMin ?? DEFAULT_REMIND_BEFORE_MIN
     form.remindersEnabled = game.remindersEnabled ?? true
+    form.hidden = Boolean(game.hidden)
   } else {
     form.name = ''
     form.server = ''
@@ -70,6 +72,7 @@ function resetForm(game = null) {
     form.utcOffsetMin = 480
     form.remindBeforeMin = DEFAULT_REMIND_BEFORE_MIN
     form.remindersEnabled = true
+    form.hidden = false
   }
 }
 
@@ -118,6 +121,7 @@ function handleSubmit() {
       utcOffsetMin: form.utcOffsetMin,
       remindBeforeMin: form.remindBeforeMin,
       remindersEnabled: form.remindersEnabled,
+      hidden: form.hidden,
     },
     done: () => close(),
     fail: (msg) => {
@@ -289,6 +293,11 @@ defineExpose({ openForCreate, openForEdit })
           type="checkbox"
         />
         <label for="game-reminders-enabled">Send Discord reminder if not done in time</label>
+      </div>
+
+      <div class="checkbox-field">
+        <input id="game-hidden" v-model="form.hidden" name="hidden" type="checkbox" />
+        <label for="game-hidden">Hide from main list (also pauses alerts)</label>
       </div>
 
       <p v-if="formError" class="form-error" role="alert">

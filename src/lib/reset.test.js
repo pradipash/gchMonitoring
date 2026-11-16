@@ -73,6 +73,9 @@ describe('reset time calculations', () => {
     // Marked done today => done even inside lead window
     const doneGame = { ...baGlobal, lastDoneAt: new Date('2026-11-15T10:00:00Z') }
     expect(urgency(doneGame, nowUrgent)).toBe('done')
+
+    // Muted alerts => stays pending instead of urgent
+    expect(urgency({ ...baGlobal, remindersEnabled: false }, nowUrgent)).toBe('pending')
   })
 
   it('handles half-hour offsets and formatting helpers', () => {

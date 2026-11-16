@@ -68,6 +68,7 @@ export function msUntilReset(game, now = new Date()) {
  */
 export function urgency(game, now = new Date()) {
   if (isDone(game, now)) return 'done'
+  if (game?.remindersEnabled === false) return 'pending'
   const leadMin = game?.remindBeforeMin ?? DEFAULT_REMIND_BEFORE_MIN
   return msUntilReset(game, now) <= leadMin * 60_000 ? 'urgent' : 'pending'
 }

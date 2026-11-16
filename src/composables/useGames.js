@@ -12,10 +12,49 @@ import {
   updateDoc,
   writeBatch,
 } from 'firebase/firestore'
-import { ref, watch } from 'vue'
+import { computed, ref, watch } from 'vue'
 import { db } from '@/firebase'
 import { DEFAULT_GAMES } from '@/lib/defaultGames'
 import { isDone } from '@/lib/reset'
+
+const GUEST_STORAGE_KEY = 'gch-guest-games'
+
+function buildDefaultGuestGames() {
+  return DEFAULT_GAMES.map((g) => ({
+    ...g,
+    lastDoneAt: null,
+    lastRemindedFor: null,
+  }))
+}
+
+function loadGuestGames() {
+  try {
+    const raw = localStorage.getItem(GUEST_STORAGE_KEY)
+    if (!raw) return buildDefaultGuestGames()
+    const parsed = JSON.parse(raw)
+    if (!Array.isArray(parsed) || parsed.length === 0) return buildDefaultGuestGames()
+    return parsed.map((g, idx) => ({
+      ...g,
+      order: g.order ?? idx,
+      hidden: Boolean(g.hidden),
+      remindersEnabled: g.remindersEnabled ?? true,
+      iconUrl:
+        typeof g.iconUrl === 'string'
+          ? g.iconUrl.replace(/\/icons\/ba\.svg$/, '/icons/ba.png')
+          : '',
+    }))
+  } catch {
+    return buildDefaultGuestGames()
+  }
+}
+
+function saveGuestGames(list) {
+  try {
+    localStorage.setItem(GUEST_STORAGE_KEY, JSON.stringify(list))
+  } catch {
+    // Ignore storage write errors
+  }
+}
 
 export function useGames(userRef) {
   const games = ref([])
@@ -23,6 +62,8 @@ export function useGames(userRef) {
   const syncing = ref(false)
   const offline = ref(false)
   const error = ref('')
+
+  const isGuest = computed(() => !userRef.value?.uid)
 
   let unsubscribe = null
   const seededCheckDone = new Set()
@@ -69,7 +110,7 @@ export function useGames(userRef) {
       }
 
       if (!uid) {
-        games.value = []
+        games.value = loadGuestGames()
         loading.value = false
         syncing.value = false
         offline.value = false
@@ -107,18 +148,60 @@ export function useGames(userRef) {
     { immediate: true },
   )
 
+  function updateGuestGame(id, patch) {
+    games.value = games.value.map((g) => (g.id === id ? { ...g, ...patch } : g))
+    saveGuestGames(games.value)
+  }
+
   async function toggleDone(game, now = new Date()) {
+    if (!game?.id) return
     const uid = userRef.value?.uid
-    if (!uid || !game?.id) return
-    const nextValue = isDone(game, now) ? null : serverTimestamp()
+    const doneNow = isDone(game, now)
+
+    if (!uid) {
+      updateGuestGame(game.id, {
+        lastDoneAt: doneNow ? null : now.toISOString(),
+      })
+      return
+    }
+
     await updateDoc(doc(db, 'users', uid, 'games', game.id), {
-      lastDoneAt: nextValue,
+      lastDoneAt: doneNow ? null : serverTimestamp(),
+    })
+  }
+
+  async function toggleMute(game) {
+    if (!game?.id) return
+    const uid = userRef.value?.uid
+    const nextEnabled = game.remindersEnabled === false
+
+    if (!uid) {
+      updateGuestGame(game.id, { remindersEnabled: nextEnabled })
+      return
+    }
+
+    await updateDoc(doc(db, 'users', uid, 'games', game.id), {
+      remindersEnabled: nextEnabled,
+    })
+  }
+
+  async function toggleHidden(game) {
+    if (!game?.id) return
+    const uid = userRef.value?.uid
+    const nextHidden = !game.hidden
+
+    if (!uid) {
+      updateGuestGame(game.id, { hidden: nextHidden })
+      return
+    }
+
+    await updateDoc(doc(db, 'users', uid, 'games', game.id), {
+      hidden: nextHidden,
     })
   }
 
   async function saveGame(id, data) {
     const uid = userRef.value?.uid
-    if (!uid) return
 
     const payload = {
       name: data.name.trim(),
@@ -129,6 +212,27 @@ export function useGames(userRef) {
       utcOffsetMin: Number(data.utcOffsetMin),
       remindBeforeMin: Number(data.remindBeforeMin),
       remindersEnabled: Boolean(data.remindersEnabled),
+      hidden: Boolean(data.hidden),
+    }
+
+    if (!uid) {
+      if (id) {
+        updateGuestGame(id, payload)
+      } else {
+        const maxOrder = games.value.reduce((max, g) => Math.max(max, g.order ?? 0), -1)
+        games.value = [
+          ...games.value,
+          {
+            id: `guest-${Date.now()}`,
+            ...payload,
+            order: maxOrder + 1,
+            lastDoneAt: null,
+            lastRemindedFor: null,
+          },
+        ]
+        saveGuestGames(games.value)
+      }
+      return
     }
 
     if (id) {
@@ -146,15 +250,28 @@ export function useGames(userRef) {
   }
 
   async function deleteGame(id) {
+    if (!id) return
     const uid = userRef.value?.uid
-    if (!uid || !id) return
+
+    if (!uid) {
+      games.value = games.value.filter((g) => g.id !== id)
+      saveGuestGames(games.value)
+      return
+    }
+
     await setDoc(doc(db, 'users', uid), { seededAt: serverTimestamp() }, { merge: true })
     await deleteDoc(doc(db, 'users', uid, 'games', id))
   }
 
   async function reorderGames(orderedList) {
     const uid = userRef.value?.uid
-    if (!uid) return
+
+    if (!uid) {
+      games.value = orderedList.map((g, index) => ({ ...g, order: index }))
+      saveGuestGames(games.value)
+      return
+    }
+
     const batch = writeBatch(db)
     let changed = false
     orderedList.forEach((game, index) => {
@@ -170,11 +287,14 @@ export function useGames(userRef) {
 
   return {
     games,
+    isGuest,
     loading,
     syncing,
     offline,
     error,
     toggleDone,
+    toggleMute,
+    toggleHidden,
     saveGame,
     deleteGame,
     reorderGames,

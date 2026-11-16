@@ -4,15 +4,17 @@ import { useNow } from '@/composables/useNow'
 import { useTheme } from '@/composables/useTheme'
 
 const props = defineProps({
-  user: { type: Object, required: true },
+  user: { type: Object, default: null },
+  signingIn: { type: Boolean, default: false },
   sortMode: { type: String, required: true },
   syncing: { type: Boolean, default: false },
   offline: { type: Boolean, default: false },
   doneCount: { type: Number, default: 0 },
   totalCount: { type: Number, default: 0 },
+  hiddenCount: { type: Number, default: 0 },
 })
 
-const emit = defineEmits(['update:sortMode', 'sign-out', 'add-game'])
+const emit = defineEmits(['update:sortMode', 'sign-in', 'sign-out', 'add-game'])
 
 const { formattedDate, formattedTime } = useNow()
 const { preference, cycleTheme } = useTheme()
@@ -21,18 +23,24 @@ const copiedUid = ref(false)
 let copyTimer = null
 
 const syncLabel = computed(() => {
+  if (!props.user) return 'Guest mode'
   if (props.offline) return 'Offline cache'
   if (props.syncing) return 'Syncing…'
   return 'Synced'
 })
 
 const themeMeta = computed(() => {
-  if (preference.value === 'light') return { label: 'Light', aria: 'Color theme: Light. Switch to Dark.' }
-  if (preference.value === 'dark') return { label: 'Dark', aria: 'Color theme: Dark. Switch to System.' }
+  if (preference.value === 'light') {
+    return { label: 'Light', aria: 'Color theme: Light. Switch to Dark.' }
+  }
+  if (preference.value === 'dark') {
+    return { label: 'Dark', aria: 'Color theme: Dark. Switch to System.' }
+  }
   return { label: 'System', aria: 'Color theme: System. Switch to Light.' }
 })
 
 async function copyUid() {
+  if (!props.user?.uid) return
   try {
     await navigator.clipboard.writeText(props.user.uid)
     copiedUid.value = true
@@ -55,7 +63,14 @@ async function copyUid() {
           <div class="meta-row">
             <span class="clock">{{ formattedDate }} · {{ formattedTime }}</span>
             <span class="dot" aria-hidden="true">•</span>
-            <span class="sync-pill" :class="{ 'is-offline': offline, 'is-syncing': syncing }">
+            <span
+              class="sync-pill"
+              :class="{
+                'is-guest': !user,
+                'is-offline': user && offline,
+                'is-syncing': user && syncing,
+              }"
+            >
               {{ syncLabel }}
             </span>
             <span v-if="totalCount > 0" class="dot" aria-hidden="true">•</span>
@@ -72,7 +87,6 @@ async function copyUid() {
             :aria-label="themeMeta.aria"
             @click="cycleTheme"
           >
-            <!-- Sun / Moon / System icon -->
             <svg
               v-if="preference === 'light'"
               aria-hidden="true"
@@ -86,7 +100,9 @@ async function copyUid() {
               stroke-linejoin="round"
             >
               <circle cx="12" cy="12" r="4" />
-              <path d="M12 2v2m0 16v2M4.93 4.93l1.41 1.41m11.32 11.32l1.41 1.41M2 12h2m16 0h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41" />
+              <path
+                d="M12 2v2m0 16v2M4.93 4.93l1.41 1.41m11.32 11.32l1.41 1.41M2 12h2m16 0h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41"
+              />
             </svg>
             <svg
               v-else-if="preference === 'dark'"
@@ -121,51 +137,69 @@ async function copyUid() {
           </button>
 
           <button
+            v-if="!user"
             type="button"
-            class="btn icon-btn"
-            popovertarget="account-popover"
-            aria-label="Account menu"
+            class="btn btn-primary icon-btn"
+            :disabled="signingIn"
+            @click="emit('sign-in')"
           >
-            <img
-              v-if="user.photoURL"
-              :src="user.photoURL"
-              alt=""
-              width="22"
-              height="22"
-              class="avatar"
-              referrerpolicy="no-referrer"
-            />
-            <span class="btn-label">{{ user.displayName?.split(' ')[0] || 'Account' }}</span>
+            <svg aria-hidden="true" viewBox="0 0 24 24" width="18" height="18">
+              <path
+                fill="currentColor"
+                d="M21.35 11.1h-9.17v2.73h6.51c-.33 3.81-3.5 5.44-6.5 5.44C8.36 19.27 5 16.25 5 12c0-4.1 3.2-7.27 7.2-7.27c3.09 0 4.9 1.97 4.9 1.97L19 4.72S16.56 2 12.1 2C6.42 2 2.03 6.8 2.03 12c0 5.05 4.13 10 10.22 10c5.35 0 9.25-3.67 9.25-9.09c0-1.15-.15-1.81-.15-1.81Z"
+              />
+            </svg>
+            <span>{{ signingIn ? 'Signing in…' : 'Sign in' }}</span>
           </button>
 
-          <div id="account-popover" popover class="account-popover">
-            <div class="account-info">
-              <strong>{{ user.displayName || 'Signed in' }}</strong>
-              <span class="account-email">{{ user.email }}</span>
-            </div>
-
-            <div class="uid-box">
-              <span class="uid-label">Your UID (for GitHub secret)</span>
-              <div class="uid-row">
-                <code class="uid-code">{{ user.uid }}</code>
-                <button type="button" class="btn btn-compact" @click="copyUid">
-                  {{ copiedUid ? 'Copied' : 'Copy' }}
-                </button>
-              </div>
-              <span class="visually-hidden" aria-live="polite">
-                {{ copiedUid ? 'User ID copied to clipboard' : '' }}
-              </span>
-            </div>
-
-            <button type="button" class="btn btn-danger signout-btn" @click="emit('sign-out')">
-              Sign out
+          <template v-else>
+            <button
+              type="button"
+              class="btn icon-btn"
+              popovertarget="account-popover"
+              aria-label="Account menu"
+            >
+              <img
+                v-if="user.photoURL"
+                :src="user.photoURL"
+                alt=""
+                width="22"
+                height="22"
+                class="avatar"
+                referrerpolicy="no-referrer"
+              />
+              <span class="btn-label">{{ user.displayName?.split(' ')[0] || 'Account' }}</span>
             </button>
-          </div>
+
+            <div id="account-popover" popover class="account-popover">
+              <div class="account-info">
+                <strong>{{ user.displayName || 'Signed in' }}</strong>
+                <span class="account-email">{{ user.email }}</span>
+              </div>
+
+              <div class="uid-box">
+                <span class="uid-label">Your UID (for reminder worker)</span>
+                <div class="uid-row">
+                  <code class="uid-code">{{ user.uid }}</code>
+                  <button type="button" class="btn btn-compact" @click="copyUid">
+                    {{ copiedUid ? 'Copied' : 'Copy' }}
+                  </button>
+                </div>
+                <span class="visually-hidden" aria-live="polite">
+                  {{ copiedUid ? 'User ID copied to clipboard' : '' }}
+                </span>
+              </div>
+
+              <button type="button" class="btn btn-danger signout-btn" @click="emit('sign-out')">
+                Sign out
+              </button>
+            </div>
+          </template>
         </div>
       </div>
 
       <div class="toolbar">
-        <div class="sort-group" role="group" aria-label="Sort games">
+        <div class="sort-group" role="group" aria-label="Game list view">
           <button
             type="button"
             class="sort-btn"
@@ -181,6 +215,14 @@ async function copyUid() {
             @click="emit('update:sortMode', 'soonest')"
           >
             Soonest reset
+          </button>
+          <button
+            type="button"
+            class="sort-btn"
+            :aria-pressed="sortMode === 'hidden'"
+            @click="emit('update:sortMode', 'hidden')"
+          >
+            Hidden<template v-if="hiddenCount > 0"> ({{ hiddenCount }})</template>
           </button>
         </div>
 
@@ -244,6 +286,10 @@ h1 {
   color: var(--done-text);
 }
 
+.sync-pill.is-guest {
+  color: var(--text-muted);
+}
+
 .sync-pill.is-syncing {
   color: var(--accent);
 }
@@ -278,6 +324,7 @@ h1 {
 
 .sort-group {
   display: inline-flex;
+  flex-wrap: wrap;
   padding: 0.2rem;
   border-radius: 0.625rem;
   background: var(--surface-subtle);

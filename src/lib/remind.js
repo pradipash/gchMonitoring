@@ -10,7 +10,7 @@ import {
 export function findDueGames(games, now = new Date()) {
   return games
     .filter((game) => {
-      if (!game.remindersEnabled || isDone(game, now)) return false
+      if (!game.remindersEnabled || game.hidden || isDone(game, now)) return false
       const leadMin = game.remindBeforeMin ?? DEFAULT_REMIND_BEFORE_MIN
       const withinWindow = msUntilReset(game, now) <= leadMin * 60_000
       const targetResetMs = nextReset(game, now).getTime()

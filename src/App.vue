@@ -4,29 +4,43 @@ import { VueDraggable } from 'vue-draggable-plus'
 import AppHeader from '@/components/AppHeader.vue'
 import GameCard from '@/components/GameCard.vue'
 import GameEditorDialog from '@/components/GameEditorDialog.vue'
-import SignInScreen from '@/components/SignInScreen.vue'
 import { useAuth } from '@/composables/useAuth'
 import { useGames } from '@/composables/useGames'
 import { useNow } from '@/composables/useNow'
 import { isDone, msUntilReset } from '@/lib/reset'
 
 const { user, authReady, authError, signingIn, signIn, signOut } = useAuth()
-const { games, loading, syncing, offline, error, toggleDone, saveGame, deleteGame, reorderGames } =
-  useGames(user)
+const {
+  games,
+  isGuest,
+  loading,
+  syncing,
+  offline,
+  error,
+  toggleDone,
+  toggleMute,
+  toggleHidden,
+  saveGame,
+  deleteGame,
+  reorderGames,
+} = useGames(user)
 const { now } = useNow()
 
 const sortMode = ref('manual')
 const editorRef = ref(null)
 const savingEditor = ref(false)
 const actionError = ref('')
+const guestBannerDismissed = ref(false)
 
-const doneCount = computed(() => games.value.filter((g) => isDone(g, now.value)).length)
+const visibleGames = computed(() => games.value.filter((g) => !g.hidden))
+const hiddenGames = computed(() => games.value.filter((g) => g.hidden))
+const doneCount = computed(() => visibleGames.value.filter((g) => isDone(g, now.value)).length)
 
-const sortedGames = computed(() => {
+const sortedVisibleGames = computed(() => {
   if (sortMode.value === 'manual') {
-    return games.value
+    return visibleGames.value
   }
-  return [...games.value].sort((a, b) => {
+  return [...visibleGames.value].sort((a, b) => {
     const aDone = isDone(a, now.value)
     const bDone = isDone(b, now.value)
     if (aDone !== bDone) return aDone ? 1 : -1
@@ -35,10 +49,11 @@ const sortedGames = computed(() => {
 })
 
 const draggableGames = computed({
-  get: () => games.value,
-  set: (newOrder) => {
-    games.value = newOrder
-    reorderGames(newOrder).catch((err) => {
+  get: () => visibleGames.value,
+  set: (newVisibleOrder) => {
+    const combined = [...newVisibleOrder, ...hiddenGames.value]
+    games.value = combined
+    reorderGames(combined).catch((err) => {
       actionError.value = err?.message || 'Failed to save new order.'
     })
   },
@@ -50,6 +65,24 @@ async function handleToggle(game) {
     await toggleDone(game, now.value)
   } catch (err) {
     actionError.value = err?.message || 'Could not update game status.'
+  }
+}
+
+async function handleToggleMute(game) {
+  actionError.value = ''
+  try {
+    await toggleMute(game)
+  } catch (err) {
+    actionError.value = err?.message || 'Could not update alert setting.'
+  }
+}
+
+async function handleToggleHidden(game) {
+  actionError.value = ''
+  try {
+    await toggleHidden(game)
+  } catch (err) {
+    actionError.value = err?.message || 'Could not update hidden setting.'
   }
 }
 
@@ -91,66 +124,124 @@ async function handleDelete({ id, done, fail }) {
     <p>Loading…</p>
   </div>
 
-  <SignInScreen v-else-if="!user" :signing-in="signingIn" :error="authError" @sign-in="signIn" />
-
   <template v-else>
     <AppHeader
       v-model:sort-mode="sortMode"
       :user="user"
+      :signing-in="signingIn"
       :syncing="syncing"
       :offline="offline"
       :done-count="doneCount"
-      :total-count="games.length"
+      :total-count="visibleGames.length"
+      :hidden-count="hiddenGames.length"
+      @sign-in="signIn"
       @sign-out="signOut"
       @add-game="handleOpenCreate"
     />
 
     <main class="container dashboard-main">
-      <p v-if="error || actionError" class="banner-error" role="alert">
-        {{ error || actionError }}
+      <div v-if="isGuest && !guestBannerDismissed" class="guest-banner">
+        <p class="guest-text">
+          <strong>Guest preview</strong> — your ticks are saved on this browser only. Sign in with
+          Google to sync progress across PC &amp; Android and get Discord reminders.
+        </p>
+        <div class="guest-actions">
+          <button type="button" class="btn btn-primary" :disabled="signingIn" @click="signIn">
+            {{ signingIn ? 'Signing in…' : 'Sign in with Google' }}
+          </button>
+          <button
+            type="button"
+            class="btn guest-dismiss"
+            aria-label="Dismiss guest notice"
+            @click="guestBannerDismissed = true"
+          >
+            ✕
+          </button>
+        </div>
+      </div>
+
+      <p v-if="authError || error || actionError" class="banner-error" role="alert">
+        {{ authError || error || actionError }}
       </p>
 
       <p v-if="loading" class="empty-state">Syncing your games…</p>
 
-      <div v-else-if="games.length === 0" class="empty-state">
-        <p>No games tracked yet.</p>
-        <button type="button" class="btn btn-primary" @click="handleOpenCreate">
-          Add your first game
-        </button>
-      </div>
+      <template v-else-if="sortMode === 'hidden'">
+        <div v-if="hiddenGames.length === 0" class="empty-state">
+          <p>No hidden games. Open ⋯ on any card to hide games you are taking a break from.</p>
+        </div>
 
-      <VueDraggable
-        v-else-if="sortMode === 'manual'"
-        v-model="draggableGames"
-        tag="ul"
-        role="list"
-        class="game-grid"
-        handle=".drag-handle"
-        :animation="180"
-        ghost-class="drag-ghost"
-      >
-        <GameCard
-          v-for="game in draggableGames"
-          :key="game.id"
-          :game="game"
-          :now="now"
-          :draggable="true"
-          @toggle="handleToggle"
-          @edit="handleOpenEdit"
-        />
-      </VueDraggable>
+        <ul v-else role="list" class="game-grid">
+          <GameCard
+            v-for="game in hiddenGames"
+            :key="game.id"
+            :game="game"
+            :now="now"
+            :draggable="false"
+            @toggle="handleToggle"
+            @edit="handleOpenEdit"
+            @toggle-mute="handleToggleMute"
+            @toggle-hidden="handleToggleHidden"
+          />
+        </ul>
+      </template>
 
-      <ul v-else role="list" class="game-grid">
-        <GameCard
-          v-for="game in sortedGames"
-          :key="game.id"
-          :game="game"
-          :now="now"
-          :draggable="false"
-          @toggle="handleToggle"
-          @edit="handleOpenEdit"
-        />
-      </ul>
+      <template v-else>
+        <div v-if="visibleGames.length === 0" class="empty-state">
+          <p v-if="hiddenGames.length > 0">All your tracked games are currently hidden.</p>
+          <p v-else>No games tracked yet.</p>
+          <div class="empty-actions">
+            <button
+              v-if="hiddenGames.length > 0"
+              type="button"
+              class="btn"
+              @click="sortMode = 'hidden'"
+            >
+              View hidden ({{ hiddenGames.length }})
+            </button>
+            <button type="button" class="btn btn-primary" @click="handleOpenCreate">
+              Add a game
+            </button>
+          </div>
+        </div>
+
+        <VueDraggable
+          v-else-if="sortMode === 'manual'"
+          v-model="draggableGames"
+          tag="ul"
+          role="list"
+          class="game-grid"
+          handle=".drag-handle"
+          :animation="180"
+          ghost-class="drag-ghost"
+        >
+          <GameCard
+            v-for="game in draggableGames"
+            :key="game.id"
+            :game="game"
+            :now="now"
+            :draggable="true"
+            @toggle="handleToggle"
+            @edit="handleOpenEdit"
+            @toggle-mute="handleToggleMute"
+            @toggle-hidden="handleToggleHidden"
+          />
+        </VueDraggable>
+
+        <ul v-else role="list" class="game-grid">
+          <GameCard
+            v-for="game in sortedVisibleGames"
+            :key="game.id"
+            :game="game"
+            :now="now"
+            :draggable="false"
+            @toggle="handleToggle"
+            @edit="handleOpenEdit"
+            @toggle-mute="handleToggleMute"
+            @toggle-hidden="handleToggleHidden"
+          />
+        </ul>
+      </template>
     </main>
 
     <GameEditorDialog
@@ -174,6 +265,41 @@ async function handleDelete({ id, done, fail }) {
   padding-block: 1.5rem 3rem;
 }
 
+.guest-banner {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem 1rem;
+  margin-bottom: 1.25rem;
+  padding: 0.875rem 1rem;
+  border-radius: 0.875rem;
+  background: var(--surface);
+  border: 1px solid var(--border);
+}
+
+.guest-text {
+  margin: 0;
+  flex: 1 1 20rem;
+  font-size: 0.9rem;
+  color: var(--text-muted);
+}
+
+.guest-text strong {
+  color: var(--text);
+}
+
+.guest-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.guest-dismiss {
+  min-inline-size: 2.75rem;
+  padding-inline: 0.65rem;
+}
+
 .banner-error {
   margin: 0 0 1rem;
   padding: 0.75rem 1rem;
@@ -187,6 +313,13 @@ async function handleDelete({ id, done, fail }) {
   text-align: center;
   padding: 3rem 1rem;
   color: var(--text-muted);
+}
+
+.empty-actions {
+  display: flex;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 0.75rem;
 }
 
 .game-grid {

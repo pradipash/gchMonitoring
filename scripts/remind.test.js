@@ -54,6 +54,19 @@ describe('reminder selection and dedupe', () => {
         lastDoneAt: null,
         lastRemindedFor: null,
       },
+      {
+        id: 'ak-hidden',
+        name: 'Arknights Hidden',
+        server: 'EN',
+        resetHour: 4,
+        resetMinute: 0,
+        utcOffsetMin: -420,
+        remindBeforeMin: 120,
+        remindersEnabled: true,
+        hidden: true,
+        lastDoneAt: null,
+        lastRemindedFor: null,
+      },
     ]
 
     const due = findDueGames(games, now)

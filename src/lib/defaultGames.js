@@ -11,6 +11,7 @@ export const DEFAULT_GAMES = [
     utcOffsetMin: 540, // UTC+9 -> 02:00 UTC+7
     remindBeforeMin: 120,
     remindersEnabled: true,
+    hidden: false,
     order: 0,
   },
   {
@@ -23,6 +24,7 @@ export const DEFAULT_GAMES = [
     utcOffsetMin: 480, // UTC+8 -> 03:00 UTC+7
     remindBeforeMin: 120,
     remindersEnabled: true,
+    hidden: false,
     order: 1,
   },
   {
@@ -35,6 +37,7 @@ export const DEFAULT_GAMES = [
     utcOffsetMin: -420, // UTC-7 -> 18:00 UTC+7
     remindBeforeMin: 120,
     remindersEnabled: true,
+    hidden: false,
     order: 2,
   },
   {
@@ -47,6 +50,7 @@ export const DEFAULT_GAMES = [
     utcOffsetMin: -240, // UTC-4 -> 16:00 UTC+7
     remindBeforeMin: 120,
     remindersEnabled: true,
+    hidden: false,
     order: 3,
   },
 ]

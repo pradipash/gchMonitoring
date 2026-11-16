@@ -17,7 +17,7 @@ const props = defineProps({
   draggable: { type: Boolean, default: true },
 })
 
-const emit = defineEmits(['toggle', 'edit'])
+const emit = defineEmits(['toggle', 'edit', 'toggle-mute', 'toggle-hidden'])
 
 const imageFailed = ref(false)
 watch(
@@ -28,13 +28,14 @@ watch(
 )
 
 const done = computed(() => isDone(props.game, props.now))
+const isMuted = computed(() => props.game.remindersEnabled === false)
 const state = computed(() => urgency(props.game, props.now))
 const remainingMs = computed(() => msUntilReset(props.game, props.now))
 const countdown = computed(() => formatCountdown(remainingMs.value))
 const shortLeft = computed(() => formatDurationShort(remainingMs.value))
 const localReset = computed(() => formatLocalResetTime(props.game, props.now))
-const serverReset = computed(() =>
-  `${formatServerResetTime(props.game)} ${formatUtcOffset(props.game.utcOffsetMin)}`,
+const serverReset = computed(
+  () => `${formatServerResetTime(props.game)} ${formatUtcOffset(props.game.utcOffsetMin)}`,
 )
 
 const initials = computed(() => {
@@ -47,7 +48,7 @@ const initials = computed(() => {
 </script>
 
 <template>
-  <li class="game-card" :class="[`state-${state}`, { 'has-drag': draggable }]">
+  <li class="game-card" :class="[`state-${state}`, { 'has-drag': draggable, 'is-hidden-card': game.hidden }]">
     <span
       v-if="draggable"
       class="drag-handle"
@@ -120,28 +121,103 @@ const initials = computed(() => {
           <span v-else class="status-badge is-pending">
             Not done
           </span>
+
+          <span v-if="isMuted" class="status-badge is-muted-badge">
+            Muted
+          </span>
         </span>
       </span>
     </button>
 
-    <button
-      type="button"
-      class="edit-btn"
-      :aria-label="`Edit ${game.name}`"
-      @click="emit('edit', game)"
-    >
-      <svg
-        aria-hidden="true"
-        viewBox="0 0 20 20"
-        width="18"
-        height="18"
-        fill="currentColor"
+    <div class="card-actions">
+      <button
+        type="button"
+        class="action-btn"
+        :aria-label="`Edit ${game.name}`"
+        title="Edit game"
+        @click="emit('edit', game)"
       >
-        <circle cx="4" cy="10" r="1.6" />
-        <circle cx="10" cy="10" r="1.6" />
-        <circle cx="16" cy="10" r="1.6" />
-      </svg>
-    </button>
+        <svg
+          aria-hidden="true"
+          viewBox="0 0 20 20"
+          width="18"
+          height="18"
+          fill="currentColor"
+        >
+          <circle cx="4" cy="10" r="1.6" />
+          <circle cx="10" cy="10" r="1.6" />
+          <circle cx="16" cy="10" r="1.6" />
+        </svg>
+      </button>
+
+      <button
+        v-if="game.hidden"
+        type="button"
+        class="action-btn unhide-btn"
+        :aria-label="`Restore ${game.name} to main list`"
+        title="Restore to main list"
+        @click="emit('toggle-hidden', game)"
+      >
+        <svg
+          aria-hidden="true"
+          viewBox="0 0 24 24"
+          width="18"
+          height="18"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+        >
+          <path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7-10-7-10-7Z" />
+          <circle cx="12" cy="12" r="3" />
+        </svg>
+      </button>
+
+      <button
+        v-else
+        type="button"
+        class="action-btn mute-btn"
+        :class="{ 'is-muted': isMuted }"
+        :aria-pressed="isMuted"
+        :aria-label="isMuted ? `Unmute alerts for ${game.name}` : `Mute alerts for ${game.name}`"
+        :title="isMuted ? 'Alerts muted — click to unmute' : 'Alerts on — click to mute'"
+        @click="emit('toggle-mute', game)"
+      >
+        <svg
+          v-if="isMuted"
+          aria-hidden="true"
+          viewBox="0 0 24 24"
+          width="18"
+          height="18"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+        >
+          <path d="M8.7 3A6 6 0 0 1 18 8a21.3 21.3 0 0 0 .6 5" />
+          <path d="M17 17H3s3-2 3-9a4.67 4.67 0 0 1 .3-1.7" />
+          <path d="M10.3 21a1.94 1.94 0 0 0 3.4 0" />
+          <path d="m2 2 20 20" />
+        </svg>
+        <svg
+          v-else
+          aria-hidden="true"
+          viewBox="0 0 24 24"
+          width="18"
+          height="18"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+        >
+          <path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9" />
+          <path d="M10.3 21a1.94 1.94 0 0 0 3.4 0" />
+        </svg>
+      </button>
+    </div>
   </li>
 </template>
 
@@ -175,6 +251,10 @@ const initials = computed(() => {
   border-color: var(--done-border);
 }
 
+.game-card.is-hidden-card {
+  border-style: dashed;
+}
+
 .drag-handle {
   display: flex;
   align-items: center;
@@ -196,7 +276,7 @@ const initials = computed(() => {
   display: flex;
   align-items: center;
   gap: 0.875rem;
-  padding: 0.95rem 0.5rem 0.95rem 0.95rem;
+  padding: 0.95rem 0.35rem 0.95rem 0.95rem;
   border: 0;
   background: transparent;
   text-align: start;
@@ -278,7 +358,7 @@ const initials = computed(() => {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 0.5rem;
+  gap: 0.45rem;
   margin-top: 0.15rem;
 }
 
@@ -313,12 +393,23 @@ const initials = computed(() => {
   color: var(--text-muted);
 }
 
-.edit-btn {
+.status-badge.is-muted-badge {
+  background: var(--surface-subtle);
+  color: var(--text-muted);
+}
+
+.card-actions {
   flex-shrink: 0;
-  align-self: flex-start;
-  min-inline-size: 3rem;
-  min-block-size: 3rem;
-  margin: 0.25rem 0.25rem 0 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.25rem 0.25rem 0.25rem 0;
+}
+
+.action-btn {
+  min-inline-size: 2.75rem;
+  min-block-size: 2.75rem;
   border: 0;
   border-radius: 0.625rem;
   background: transparent;
@@ -328,8 +419,16 @@ const initials = computed(() => {
   cursor: pointer;
 }
 
-.edit-btn:hover {
+.action-btn:hover {
   background: color-mix(in srgb, var(--text) 8%, transparent);
   color: var(--text);
+}
+
+.mute-btn.is-muted {
+  color: var(--urgent-text);
+}
+
+.unhide-btn {
+  color: var(--accent);
 }
 </style>
