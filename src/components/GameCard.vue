@@ -48,20 +48,18 @@ const initials = computed(() => {
 </script>
 
 <template>
-  <li class="game-card" :class="[`state-${state}`, { 'has-drag': draggable, 'is-hidden-card': game.hidden }]">
-    <span
-      v-if="draggable"
-      class="drag-handle"
-      aria-hidden="true"
-      title="Drag to reorder"
-    >
+  <li
+    class="game-card"
+    :class="[`state-${state}`, { 'has-drag': draggable, 'is-hidden-card': game.hidden }]"
+  >
+    <span v-if="draggable" class="drag-handle" aria-hidden="true" title="Drag to reorder">
       <svg viewBox="0 0 16 16" width="16" height="16" fill="currentColor">
-        <circle cx="5.5" cy="3.5" r="1.3" />
-        <circle cx="10.5" cy="3.5" r="1.3" />
-        <circle cx="5.5" cy="8" r="1.3" />
-        <circle cx="10.5" cy="8" r="1.3" />
-        <circle cx="5.5" cy="12.5" r="1.3" />
-        <circle cx="10.5" cy="12.5" r="1.3" />
+        <circle cx="5.5" cy="3.5" r="1.2" />
+        <circle cx="10.5" cy="3.5" r="1.2" />
+        <circle cx="5.5" cy="8" r="1.2" />
+        <circle cx="10.5" cy="8" r="1.2" />
+        <circle cx="5.5" cy="12.5" r="1.2" />
+        <circle cx="10.5" cy="12.5" r="1.2" />
       </svg>
     </span>
 
@@ -71,6 +69,24 @@ const initials = computed(() => {
       :aria-pressed="done"
       @click="emit('toggle', game)"
     >
+      <span class="check-slot" aria-hidden="true">
+        <span class="check-circle" :class="{ 'is-checked': done }">
+          <svg
+            v-if="done"
+            viewBox="0 0 20 20"
+            width="14"
+            height="14"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+          >
+            <path d="M4.5 10.5 8.2 14.2 15.5 6.8" />
+          </svg>
+        </span>
+      </span>
+
       <span class="icon-wrap" aria-hidden="true">
         <img
           v-if="game.iconUrl && !imageFailed"
@@ -89,42 +105,18 @@ const initials = computed(() => {
           <span v-if="game.server" class="server-tag">{{ game.server }}</span>
         </span>
 
-        <span class="reset-line">
-          Resets {{ localReset }} local
-          <span class="server-sub">({{ serverReset }})</span>
-        </span>
-
-        <span class="status-row">
+        <span class="countdown-row">
           <span class="countdown">{{ countdown }}</span>
 
-          <span v-if="state === 'done'" class="status-badge is-done">
-            <svg
-              aria-hidden="true"
-              viewBox="0 0 20 20"
-              width="14"
-              height="14"
-              fill="none"
-              stroke="currentColor"
-              stroke-width="2.5"
-              stroke-linecap="round"
-              stroke-linejoin="round"
-            >
-              <path d="M4 10.5 8 14.5 16 6.5" />
-            </svg>
-            Done today
-          </span>
-
-          <span v-else-if="state === 'urgent'" class="status-badge is-urgent">
+          <span v-if="state === 'done'" class="status-tag is-done">Done</span>
+          <span v-else-if="state === 'urgent'" class="status-tag is-urgent">
             Due in {{ shortLeft }}
           </span>
+          <span v-if="isMuted" class="status-tag is-muted-tag">Muted</span>
+        </span>
 
-          <span v-else class="status-badge is-pending">
-            Not done
-          </span>
-
-          <span v-if="isMuted" class="status-badge is-muted-badge">
-            Muted
-          </span>
+        <span class="reset-line">
+          Resets {{ localReset }} local · {{ serverReset }}
         </span>
       </span>
     </button>
@@ -139,14 +131,18 @@ const initials = computed(() => {
       >
         <svg
           aria-hidden="true"
-          viewBox="0 0 20 20"
+          viewBox="0 0 24 24"
           width="18"
           height="18"
-          fill="currentColor"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="1.5"
+          stroke-linecap="round"
+          stroke-linejoin="round"
         >
-          <circle cx="4" cy="10" r="1.6" />
-          <circle cx="10" cy="10" r="1.6" />
-          <circle cx="16" cy="10" r="1.6" />
+          <circle cx="5" cy="12" r="1" fill="currentColor" />
+          <circle cx="12" cy="12" r="1" fill="currentColor" />
+          <circle cx="19" cy="12" r="1" fill="currentColor" />
         </svg>
       </button>
 
@@ -165,7 +161,7 @@ const initials = computed(() => {
           height="18"
           fill="none"
           stroke="currentColor"
-          stroke-width="2"
+          stroke-width="1.5"
           stroke-linecap="round"
           stroke-linejoin="round"
         >
@@ -192,7 +188,7 @@ const initials = computed(() => {
           height="18"
           fill="none"
           stroke="currentColor"
-          stroke-width="2"
+          stroke-width="1.5"
           stroke-linecap="round"
           stroke-linejoin="round"
         >
@@ -209,7 +205,7 @@ const initials = computed(() => {
           height="18"
           fill="none"
           stroke="currentColor"
-          stroke-width="2"
+          stroke-width="1.5"
           stroke-linecap="round"
           stroke-linejoin="round"
         >
@@ -227,23 +223,22 @@ const initials = computed(() => {
   display: flex;
   align-items: stretch;
   background: var(--surface);
-  border: 1.5px solid var(--border);
+  border: 1px solid var(--border);
   border-radius: 1rem;
   overflow: hidden;
   transition:
-    background-color 0.15s ease,
-    border-color 0.15s ease,
-    opacity 0.15s ease,
-    box-shadow 0.15s ease;
+    background-color 0.15s var(--ease-out),
+    border-color 0.15s var(--ease-out);
 }
 
 .game-card:hover {
-  box-shadow: 0 6px 20px rgba(15, 23, 42, 0.08);
+  background: var(--surface-raised);
 }
 
 .game-card.state-urgent {
   background: var(--urgent-bg);
   border-color: var(--urgent-border);
+  box-shadow: inset 3px 0 0 var(--accent);
 }
 
 .game-card.state-done {
@@ -259,11 +254,18 @@ const initials = computed(() => {
   display: flex;
   align-items: center;
   justify-content: center;
-  padding-inline: 0.5rem 0.25rem;
+  min-inline-size: 2.25rem;
+  padding-inline: 0.25rem 0;
   color: var(--text-muted);
   cursor: grab;
-  touch-action: pan-x;
+  touch-action: none;
   user-select: none;
+}
+
+@media (pointer: coarse) {
+  .drag-handle {
+    min-inline-size: 2.75rem;
+  }
 }
 
 .drag-handle:active {
@@ -275,8 +277,8 @@ const initials = computed(() => {
   min-width: 0;
   display: flex;
   align-items: center;
-  gap: 0.875rem;
-  padding: 0.95rem 0.35rem 0.95rem 0.95rem;
+  gap: 0.75rem;
+  padding: 0.75rem 0.25rem 0.75rem 0.75rem;
   border: 0;
   background: transparent;
   text-align: start;
@@ -284,15 +286,48 @@ const initials = computed(() => {
 }
 
 .has-drag .card-toggle {
-  padding-inline-start: 0.375rem;
+  padding-inline-start: 0.125rem;
+}
+
+.check-slot {
+  flex-shrink: 0;
+  width: 2.75rem;
+  height: 2.75rem;
+  margin-inline: -0.375rem -0.25rem;
+  display: grid;
+  place-items: center;
+}
+
+.check-circle {
+  width: 1.5rem;
+  height: 1.5rem;
+  border-radius: 999px;
+  border: 1.5px solid var(--text-muted);
+  display: grid;
+  place-items: center;
+  color: transparent;
+  transition:
+    background-color 0.15s var(--ease-out),
+    border-color 0.15s var(--ease-out),
+    color 0.15s var(--ease-out);
+}
+
+.state-urgent .check-circle {
+  border-color: var(--accent);
+}
+
+.check-circle.is-checked {
+  background: color-mix(in srgb, var(--done-text) 18%, transparent);
+  border-color: var(--done-text);
+  color: var(--done-text);
 }
 
 .icon-wrap {
   flex-shrink: 0;
-  width: 3.5rem;
-  height: 3.5rem;
-  border-radius: 0.75rem;
-  background: var(--surface-subtle);
+  width: 3rem;
+  height: 3rem;
+  border-radius: 0.5rem;
+  background: var(--surface-raised);
   display: grid;
   place-items: center;
   overflow: hidden;
@@ -305,9 +340,9 @@ const initials = computed(() => {
 }
 
 .icon-fallback {
-  font-weight: 800;
-  font-size: 1.05rem;
-  color: var(--text-muted);
+  font-weight: 600;
+  font-size: 0.95rem;
+  color: var(--text-secondary);
 }
 
 .card-info {
@@ -315,86 +350,79 @@ const initials = computed(() => {
   min-width: 0;
   display: flex;
   flex-direction: column;
-  gap: 0.25rem;
+  gap: 0.2rem;
 }
 
 .title-row {
   display: flex;
   flex-wrap: wrap;
-  align-items: center;
+  align-items: baseline;
   gap: 0.45rem;
 }
 
 .game-name {
-  font-size: 1.0625rem;
-  font-weight: 700;
-  line-height: 1.25;
+  font-size: 1rem;
+  font-weight: 600;
+  line-height: 1.3;
   word-break: break-word;
 }
 
 .state-done .game-name {
-  opacity: 0.88;
+  opacity: 0.82;
 }
 
 .server-tag {
-  font-size: 0.75rem;
-  font-weight: 600;
-  padding: 0.125rem 0.45rem;
-  border-radius: 999px;
-  background: var(--surface-subtle);
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  font-weight: 500;
   color: var(--text-muted);
 }
 
-.reset-line {
-  font-size: 0.84rem;
-  color: var(--text-muted);
-}
-
-.server-sub {
-  opacity: 0.85;
-}
-
-.status-row {
+.countdown-row {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
   gap: 0.45rem;
-  margin-top: 0.15rem;
 }
 
 .countdown {
+  font-family: var(--font-mono);
   font-variant-numeric: tabular-nums;
-  font-size: 0.95rem;
-  font-weight: 700;
+  font-size: 1.125rem;
+  font-weight: 500;
+  line-height: 1.2;
 }
 
-.status-badge {
+.state-done .countdown {
+  color: var(--text-secondary);
+}
+
+.status-tag {
   display: inline-flex;
   align-items: center;
-  gap: 0.25rem;
-  font-size: 0.78rem;
-  font-weight: 700;
-  padding: 0.15rem 0.5rem;
+  font-size: 0.72rem;
+  font-weight: 600;
+  padding: 0.125rem 0.45rem;
   border-radius: 999px;
 }
 
-.status-badge.is-done {
-  background: color-mix(in srgb, var(--done-border) 18%, transparent);
+.status-tag.is-done {
+  background: color-mix(in srgb, var(--done-text) 14%, transparent);
   color: var(--done-text);
 }
 
-.status-badge.is-urgent {
-  background: color-mix(in srgb, var(--urgent-border) 22%, transparent);
+.status-tag.is-urgent {
+  background: color-mix(in srgb, var(--accent) 16%, transparent);
   color: var(--urgent-text);
 }
 
-.status-badge.is-pending {
-  background: var(--surface-subtle);
-  color: var(--text-muted);
+.status-tag.is-muted-tag {
+  background: var(--surface-raised);
+  color: var(--text-secondary);
 }
 
-.status-badge.is-muted-badge {
-  background: var(--surface-subtle);
+.reset-line {
+  font-size: 0.75rem;
   color: var(--text-muted);
 }
 
@@ -411,12 +439,15 @@ const initials = computed(() => {
   min-inline-size: 2.75rem;
   min-block-size: 2.75rem;
   border: 0;
-  border-radius: 0.625rem;
+  border-radius: 0.5rem;
   background: transparent;
   color: var(--text-muted);
   display: grid;
   place-items: center;
   cursor: pointer;
+  transition:
+    background-color 0.15s var(--ease-out),
+    color 0.15s var(--ease-out);
 }
 
 .action-btn:hover {

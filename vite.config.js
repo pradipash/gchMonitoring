@@ -11,13 +11,13 @@ export default defineConfig({
     vueDevTools(),
     VitePWA({
       registerType: 'autoUpdate',
-      includeAssets: ['favicon.ico', 'apple-touch-icon.png', 'icons/*.png', 'icons/*.svg'],
+      includeAssets: ['favicon.ico', 'apple-touch-icon.png', 'icons/*.png'],
       manifest: {
         name: 'Gacha Reset Tracker',
         short_name: 'Gacha Reset',
         description: 'Track daily server resets and completion across PC and Android.',
-        theme_color: '#0f172a',
-        background_color: '#0b1120',
+        theme_color: '#141415',
+        background_color: '#141415',
         display: 'standalone',
         start_url: '/gchMonitoring/',
         scope: '/gchMonitoring/',
@@ -41,7 +41,7 @@ export default defineConfig({
         ],
       },
       workbox: {
-        globPatterns: ['**/*.{js,css,html,ico,png,svg}'],
+        globPatterns: ['**/*.{js,css,html,ico,png,svg,woff2}'],
       },
     }),
   ],

@@ -8,6 +8,31 @@ defineProps({
 
 const emit = defineEmits(['save', 'delete'])
 
+const BASE = import.meta.env?.BASE_URL ?? '/gchMonitoring/'
+
+const ICON_PRESETS = [
+  { id: 'ba', label: 'Blue Archive', url: `${BASE}icons/ba.png` },
+  { id: 'zzz', label: 'Zenless Zone Zero', url: `${BASE}icons/zzz.png` },
+  { id: 'ak', label: 'Arknights', url: `${BASE}icons/ak.png` },
+  { id: 'gfl2', label: 'Girls Frontline 2', url: `${BASE}icons/gfl2.png` },
+]
+
+const BASE_TIMEZONES = [
+  -720, -660, -600, -540, -480, -420, -360, -300, -240, -210, -180, -120, -60, 0, 60, 120, 180,
+  210, 240, 270, 300, 330, 345, 360, 390, 420, 480, 540, 570, 600, 660, 720, 780, 840,
+]
+
+const BASE_LEAD_TIMES = [
+  { value: 15, label: '15 minutes before' },
+  { value: 30, label: '30 minutes before' },
+  { value: 60, label: '1 hour before' },
+  { value: 120, label: '2 hours before (default)' },
+  { value: 180, label: '3 hours before' },
+  { value: 240, label: '4 hours before' },
+  { value: 360, label: '6 hours before' },
+  { value: 720, label: '12 hours before' },
+]
+
 const dialogRef = ref(null)
 const nameInputRef = ref(null)
 const editingId = ref(null)
@@ -26,26 +51,24 @@ const form = reactive({
   hidden: false,
 })
 
-const TIMEZONE_OPTIONS = [
-  -720, -660, -600, -540, -480, -420, -360, -300, -240, -210, -180, -120, -60, 0, 60, 120, 180,
-  210, 240, 270, 300, 330, 345, 360, 390, 420, 480, 540, 570, 600, 660, 720, 780, 840,
-].map((min) => ({
-  value: min,
-  label: formatUtcOffset(min),
-}))
-
-const LEAD_TIME_OPTIONS = [
-  { value: 15, label: '15 minutes before' },
-  { value: 30, label: '30 minutes before' },
-  { value: 60, label: '1 hour before' },
-  { value: 120, label: '2 hours before (default)' },
-  { value: 180, label: '3 hours before' },
-  { value: 240, label: '4 hours before' },
-  { value: 360, label: '6 hours before' },
-  { value: 720, label: '12 hours before' },
-]
-
 const isEditing = computed(() => Boolean(editingId.value))
+
+const timezoneOptions = computed(() => {
+  const values = BASE_TIMEZONES.includes(form.utcOffsetMin)
+    ? BASE_TIMEZONES
+    : [...BASE_TIMEZONES, form.utcOffsetMin].sort((a, b) => a - b)
+  return values.map((min) => ({ value: min, label: formatUtcOffset(min) }))
+})
+
+const leadTimeOptions = computed(() => {
+  if (BASE_LEAD_TIMES.some((o) => o.value === form.remindBeforeMin)) {
+    return BASE_LEAD_TIMES
+  }
+  return [
+    ...BASE_LEAD_TIMES,
+    { value: form.remindBeforeMin, label: `${form.remindBeforeMin} minutes before` },
+  ].sort((a, b) => a.value - b.value)
+})
 
 function resetForm(game = null) {
   editingId.value = game?.id ?? null
@@ -76,6 +99,11 @@ function resetForm(game = null) {
   }
 }
 
+function selectPreset(url) {
+  form.iconUrl = url
+  previewError.value = false
+}
+
 async function openForCreate() {
   resetForm(null)
   dialogRef.value?.showModal()
@@ -104,6 +132,12 @@ function handleNativeClose() {
 
 function handleSubmit() {
   formError.value = ''
+  if (!form.name.trim()) {
+    formError.value = 'Game name is required.'
+    nameInputRef.value?.focus()
+    return
+  }
+
   const [hh, mm] = form.resetTime.split(':').map(Number)
   if (!Number.isInteger(hh) || !Number.isInteger(mm)) {
     formError.value = 'Please choose a valid reset time.'
@@ -188,10 +222,23 @@ defineExpose({ openForCreate, openForEdit })
     aria-labelledby="editor-title"
     @close="handleNativeClose"
   >
+    <div class="sheet-grab" aria-hidden="true"></div>
+
     <div class="dialog-header">
       <h2 id="editor-title">{{ isEditing ? 'Edit game' : 'Add game' }}</h2>
       <button type="button" class="close-btn" aria-label="Close dialog" @click="close">
-        ✕
+        <svg
+          aria-hidden="true"
+          viewBox="0 0 24 24"
+          width="18"
+          height="18"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="1.5"
+          stroke-linecap="round"
+        >
+          <path d="M18 6 6 18M6 6l12 12" />
+        </svg>
       </button>
     </div>
 
@@ -225,10 +272,34 @@ defineExpose({ openForCreate, openForEdit })
       </div>
 
       <div class="field">
-        <label for="game-icon">Icon URL</label>
-        <span id="game-icon-hint" class="hint">
-          Optional image URL or built-in icon path. Falls back to initials if blank.
-        </span>
+        <span class="field-label">Icon</span>
+        <div class="preset-row" role="group" aria-label="Icon presets">
+          <button
+            v-for="preset in ICON_PRESETS"
+            :key="preset.id"
+            type="button"
+            class="preset-btn"
+            :aria-pressed="form.iconUrl === preset.url"
+            :aria-label="`Use ${preset.label} icon`"
+            :title="preset.label"
+            @click="selectPreset(preset.url)"
+          >
+            <img :src="preset.url" alt="" />
+          </button>
+
+          <button
+            type="button"
+            class="preset-btn preset-initials"
+            :aria-pressed="!form.iconUrl"
+            aria-label="Use game initials instead of image"
+            title="Initials"
+            @click="selectPreset('')"
+          >
+            {{ (form.name || '?').slice(0, 2).toUpperCase() }}
+          </button>
+        </div>
+
+        <label for="game-icon" class="sub-label">Custom icon URL</label>
         <div class="icon-input-row">
           <input
             id="game-icon"
@@ -239,7 +310,7 @@ defineExpose({ openForCreate, openForEdit })
             autocorrect="off"
             autocapitalize="none"
             spellcheck="false"
-            aria-describedby="game-icon-hint"
+            placeholder="https://… (optional)"
             @input="previewError = false"
           />
           <span class="icon-preview" aria-hidden="true">
@@ -269,7 +340,7 @@ defineExpose({ openForCreate, openForEdit })
         <div class="field">
           <label for="game-timezone">Server timezone</label>
           <select id="game-timezone" v-model.number="form.utcOffsetMin" name="utcOffsetMin">
-            <option v-for="tz in TIMEZONE_OPTIONS" :key="tz.value" :value="tz.value">
+            <option v-for="tz in timezoneOptions" :key="tz.value" :value="tz.value">
               {{ tz.label }}
             </option>
           </select>
@@ -279,25 +350,27 @@ defineExpose({ openForCreate, openForEdit })
       <div class="field">
         <label for="game-remind-lead">Reminder lead time</label>
         <select id="game-remind-lead" v-model.number="form.remindBeforeMin" name="remindBeforeMin">
-          <option v-for="opt in LEAD_TIME_OPTIONS" :key="opt.value" :value="opt.value">
+          <option v-for="opt in leadTimeOptions" :key="opt.value" :value="opt.value">
             {{ opt.label }}
           </option>
         </select>
       </div>
 
-      <div class="checkbox-field">
-        <input
-          id="game-reminders-enabled"
-          v-model="form.remindersEnabled"
-          name="remindersEnabled"
-          type="checkbox"
-        />
-        <label for="game-reminders-enabled">Send Discord reminder if not done in time</label>
-      </div>
+      <div class="toggle-list">
+        <label class="checkbox-field" for="game-reminders-enabled">
+          <input
+            id="game-reminders-enabled"
+            v-model="form.remindersEnabled"
+            name="remindersEnabled"
+            type="checkbox"
+          />
+          <span>Send Discord reminder if not done in time</span>
+        </label>
 
-      <div class="checkbox-field">
-        <input id="game-hidden" v-model="form.hidden" name="hidden" type="checkbox" />
-        <label for="game-hidden">Hide from main list (also pauses alerts)</label>
+        <label class="checkbox-field" for="game-hidden">
+          <input id="game-hidden" v-model="form.hidden" name="hidden" type="checkbox" />
+          <span>Hide from main list (also pauses alerts)</span>
+        </label>
       </div>
 
       <p v-if="formError" class="form-error" role="alert">
@@ -348,21 +421,111 @@ defineExpose({ openForCreate, openForEdit })
 
 <style scoped>
 .editor-dialog {
-  width: min(calc(100vw - 1.5rem), 32rem);
+  width: min(calc(100vw - 1.5rem), 30rem);
   max-height: calc(100dvh - 2rem);
+  overflow-y: auto;
   margin: auto;
-  padding: 1.5rem;
+  padding: 1.25rem;
   border-radius: 1rem;
   border: 1px solid var(--border);
   background: var(--surface);
   color: var(--text);
-  box-shadow: 0 24px 48px rgba(15, 23, 42, 0.28);
+  box-shadow: 0 24px 48px rgba(0, 0, 0, 0.36);
+
+  opacity: 0;
+  transition-property: opacity, transform, display, overlay;
+  transition-duration: 0.22s;
+  transition-timing-function: var(--ease-out);
+  transition-behavior: allow-discrete;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .editor-dialog {
+    transform: translateY(12px) scale(0.98);
+  }
 }
 
 .editor-dialog[open] {
   display: flex;
   flex-direction: column;
-  gap: 1.25rem;
+  gap: 1rem;
+  opacity: 1;
+
+  @starting-style {
+    opacity: 0;
+  }
+
+  @media (prefers-reduced-motion: no-preference) {
+    transform: translateY(0) scale(1);
+
+    @starting-style {
+      transform: translateY(12px) scale(0.98);
+    }
+  }
+}
+
+.editor-dialog::backdrop {
+  background-color: rgba(10, 10, 12, 0);
+  transition-property: background-color, display, overlay;
+  transition-duration: 0.22s;
+  transition-timing-function: var(--ease-out);
+  transition-behavior: allow-discrete;
+}
+
+.editor-dialog[open]::backdrop {
+  background-color: rgba(10, 10, 12, 0.58);
+
+  @starting-style {
+    background-color: rgba(10, 10, 12, 0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .editor-dialog,
+  .editor-dialog::backdrop {
+    transition-duration: 0.1s;
+  }
+}
+
+.sheet-grab {
+  display: none;
+  width: 2.25rem;
+  height: 0.25rem;
+  border-radius: 999px;
+  background: var(--border);
+  margin: -0.25rem auto 0;
+}
+
+@media (max-width: 639px) {
+  .editor-dialog {
+    position: fixed;
+    inset: auto 0 0 0;
+    width: 100%;
+    max-width: none;
+    max-height: 90dvh;
+    margin: 0;
+    border-radius: 1rem 1rem 0 0;
+    border-bottom: 0;
+    padding-bottom: max(1.25rem, env(safe-area-inset-bottom, 0px));
+  }
+
+  @media (prefers-reduced-motion: no-preference) {
+    .editor-dialog {
+      transform: translateY(100%);
+    }
+
+    .editor-dialog[open] {
+      transform: translateY(0);
+
+      @starting-style {
+        transform: translateY(100%);
+      }
+    }
+  }
+
+  .sheet-grab {
+    display: block;
+  }
 }
 
 .dialog-header {
@@ -374,35 +537,37 @@ defineExpose({ openForCreate, openForEdit })
 
 h2 {
   margin: 0;
-  font-size: 1.25rem;
+  font-size: 1.125rem;
+  font-weight: 600;
 }
 
 .close-btn {
   min-inline-size: 2.75rem;
   min-block-size: 2.75rem;
   border: 0;
-  border-radius: 0.625rem;
+  border-radius: 0.5rem;
   background: transparent;
   color: var(--text-muted);
-  font-size: 1.125rem;
+  display: grid;
+  place-items: center;
   cursor: pointer;
 }
 
 .close-btn:hover {
-  background: var(--surface-subtle);
+  background: var(--surface-raised);
   color: var(--text);
 }
 
 .editor-form {
   display: flex;
   flex-direction: column;
-  gap: 1rem;
+  gap: 0.875rem;
 }
 
 .form-row-2 {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 0.875rem;
+  gap: 0.75rem;
 }
 
 .field {
@@ -411,46 +576,86 @@ h2 {
   gap: 0.3rem;
 }
 
-label {
-  font-size: 0.875rem;
-  font-weight: 600;
+label,
+.field-label {
+  font-size: 0.8125rem;
+  font-weight: 500;
+  color: var(--text-secondary);
 }
 
-.hint {
-  font-size: 0.78rem;
+.sub-label {
+  font-size: 0.75rem;
   color: var(--text-muted);
+  margin-top: 0.25rem;
 }
 
 input[type='text'],
 input[type='time'],
 select {
   width: 100%;
-  min-block-size: 3rem;
-  padding: 0.625rem 0.75rem;
-  border-radius: 0.625rem;
+  min-block-size: 2.75rem;
+  padding: 0.5rem 0.75rem;
+  border-radius: 0.5rem;
   border: 1px solid var(--border);
   background: var(--bg);
   font-size: max(1rem, 1em);
 }
 
+.preset-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.preset-btn {
+  width: 2.75rem;
+  height: 2.75rem;
+  padding: 0;
+  border-radius: 0.5rem;
+  border: 1.5px solid var(--border);
+  background: var(--surface-raised);
+  overflow: hidden;
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+  transition: border-color 0.15s var(--ease-out);
+}
+
+.preset-btn img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.preset-btn[aria-pressed='true'] {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent) 28%, transparent);
+}
+
+.preset-initials {
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+
 .icon-input-row {
   display: flex;
   align-items: center;
-  gap: 0.625rem;
+  gap: 0.5rem;
 }
 
 .icon-preview {
   flex-shrink: 0;
-  width: 3rem;
-  height: 3rem;
-  border-radius: 0.625rem;
+  width: 2.75rem;
+  height: 2.75rem;
+  border-radius: 0.5rem;
   border: 1px solid var(--border);
-  background: var(--surface-subtle);
+  background: var(--surface-raised);
   display: grid;
   place-items: center;
   overflow: hidden;
-  font-size: 0.85rem;
-  font-weight: 700;
+  font-size: 0.8125rem;
+  font-weight: 600;
   color: var(--text-muted);
 }
 
@@ -460,31 +665,35 @@ select {
   object-fit: cover;
 }
 
-.checkbox-field {
+.toggle-list {
   display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.checkbox-field {
+  display: inline-flex;
   align-items: center;
   gap: 0.625rem;
   min-block-size: 2.75rem;
+  font-size: 0.875rem;
+  color: var(--text);
+  cursor: pointer;
 }
 
 .checkbox-field input[type='checkbox'] {
-  width: 1.25rem;
-  height: 1.25rem;
+  width: 1.125rem;
+  height: 1.125rem;
   flex-shrink: 0;
-}
-
-.checkbox-field label {
-  font-weight: 500;
-  cursor: pointer;
 }
 
 .form-error {
   margin: 0;
-  padding: 0.65rem 0.75rem;
+  padding: 0.625rem 0.75rem;
   border-radius: 0.5rem;
   background: color-mix(in srgb, var(--danger) 12%, var(--surface));
   color: var(--danger);
-  font-size: 0.875rem;
+  font-size: 0.8125rem;
 }
 
 .dialog-actions {
@@ -493,7 +702,7 @@ select {
   align-items: center;
   justify-content: space-between;
   gap: 0.75rem;
-  padding-top: 0.5rem;
+  padding-top: 0.75rem;
   border-top: 1px solid var(--border);
 }
 

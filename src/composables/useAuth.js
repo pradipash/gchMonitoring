@@ -17,10 +17,17 @@ let initialized = false
 function ensureAuthListener() {
   if (initialized) return
   initialized = true
-  onAuthStateChanged(auth, (nextUser) => {
-    user.value = nextUser
-    authReady.value = true
-  })
+  onAuthStateChanged(
+    auth,
+    (nextUser) => {
+      user.value = nextUser
+      authReady.value = true
+    },
+    (err) => {
+      authError.value = err?.message || 'Failed to check authentication state.'
+      authReady.value = true
+    },
+  )
 }
 
 async function signIn() {
@@ -48,7 +55,11 @@ async function signIn() {
 
 async function signOut() {
   authError.value = ''
-  await firebaseSignOut(auth)
+  try {
+    await firebaseSignOut(auth)
+  } catch (err) {
+    authError.value = err?.message || 'Sign-out failed. Please try again.'
+  }
 }
 
 export function useAuth() {

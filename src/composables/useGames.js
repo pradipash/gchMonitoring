@@ -15,6 +15,7 @@ import {
 import { computed, ref, watch } from 'vue'
 import { db } from '@/firebase'
 import { DEFAULT_GAMES } from '@/lib/defaultGames'
+import { normalizeGamePayload } from '@/lib/gamePayload'
 import { isDone } from '@/lib/reset'
 
 const GUEST_STORAGE_KEY = 'gch-guest-games'
@@ -126,7 +127,10 @@ export function useGames(userRef) {
         gamesQuery,
         { includeMetadataChanges: true },
         (snap) => {
-          games.value = snap.docs.map((d) => ({ id: d.id, ...d.data() }))
+          games.value = snap.docs.map((d) => ({
+            id: d.id,
+            ...d.data({ serverTimestamps: 'estimate' }),
+          }))
           syncing.value = snap.metadata.hasPendingWrites
           offline.value = snap.metadata.fromCache
           loading.value = false
@@ -202,18 +206,7 @@ export function useGames(userRef) {
 
   async function saveGame(id, data) {
     const uid = userRef.value?.uid
-
-    const payload = {
-      name: data.name.trim(),
-      server: data.server.trim(),
-      iconUrl: data.iconUrl.trim(),
-      resetHour: Number(data.resetHour),
-      resetMinute: Number(data.resetMinute),
-      utcOffsetMin: Number(data.utcOffsetMin),
-      remindBeforeMin: Number(data.remindBeforeMin),
-      remindersEnabled: Boolean(data.remindersEnabled),
-      hidden: Boolean(data.hidden),
-    }
+    const payload = normalizeGamePayload(data)
 
     if (!uid) {
       if (id) {

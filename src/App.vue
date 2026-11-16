@@ -35,6 +35,9 @@ const guestBannerDismissed = ref(false)
 const visibleGames = computed(() => games.value.filter((g) => !g.hidden))
 const hiddenGames = computed(() => games.value.filter((g) => g.hidden))
 const doneCount = computed(() => visibleGames.value.filter((g) => isDone(g, now.value)).length)
+const allDone = computed(
+  () => visibleGames.value.length > 0 && doneCount.value === visibleGames.value.length,
+)
 
 const sortedVisibleGames = computed(() => {
   if (sortMode.value === 'manual') {
@@ -51,9 +54,11 @@ const sortedVisibleGames = computed(() => {
 const draggableGames = computed({
   get: () => visibleGames.value,
   set: (newVisibleOrder) => {
+    const previousGames = [...games.value]
     const combined = [...newVisibleOrder, ...hiddenGames.value]
     games.value = combined
     reorderGames(combined).catch((err) => {
+      games.value = previousGames
       actionError.value = err?.message || 'Failed to save new order.'
     })
   },
@@ -140,24 +145,37 @@ async function handleDelete({ id, done, fail }) {
     />
 
     <main class="container dashboard-main">
-      <div v-if="isGuest && !guestBannerDismissed" class="guest-banner">
+      <div v-if="isGuest && !guestBannerDismissed" class="guest-strip">
         <p class="guest-text">
-          <strong>Guest preview</strong> — your ticks are saved on this browser only. Sign in with
-          Google to sync progress across PC &amp; Android and get Discord reminders.
-        </p>
-        <div class="guest-actions">
-          <button type="button" class="btn btn-primary" :disabled="signingIn" @click="signIn">
-            {{ signingIn ? 'Signing in…' : 'Sign in with Google' }}
-          </button>
+          Guest mode · saved on this browser.
           <button
             type="button"
-            class="btn guest-dismiss"
-            aria-label="Dismiss guest notice"
-            @click="guestBannerDismissed = true"
+            class="guest-link"
+            :disabled="signingIn"
+            @click="signIn"
           >
-            ✕
+            {{ signingIn ? 'Signing in…' : 'Sign in to sync' }}
           </button>
-        </div>
+        </p>
+        <button
+          type="button"
+          class="guest-dismiss"
+          aria-label="Dismiss guest notice"
+          @click="guestBannerDismissed = true"
+        >
+          <svg
+            aria-hidden="true"
+            viewBox="0 0 24 24"
+            width="16"
+            height="16"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="1.5"
+            stroke-linecap="round"
+          >
+            <path d="M18 6 6 18M6 6l12 12" />
+          </svg>
+        </button>
       </div>
 
       <p v-if="authError || error || actionError" class="banner-error" role="alert">
@@ -205,42 +223,46 @@ async function handleDelete({ id, done, fail }) {
           </div>
         </div>
 
-        <VueDraggable
-          v-else-if="sortMode === 'manual'"
-          v-model="draggableGames"
-          tag="ul"
-          role="list"
-          class="game-grid"
-          handle=".drag-handle"
-          :animation="180"
-          ghost-class="drag-ghost"
-        >
-          <GameCard
-            v-for="game in draggableGames"
-            :key="game.id"
-            :game="game"
-            :now="now"
-            :draggable="true"
-            @toggle="handleToggle"
-            @edit="handleOpenEdit"
-            @toggle-mute="handleToggleMute"
-            @toggle-hidden="handleToggleHidden"
-          />
-        </VueDraggable>
+        <template v-else>
+          <p v-if="allDone" class="all-done-note">All dailies done for today.</p>
 
-        <ul v-else role="list" class="game-grid">
-          <GameCard
-            v-for="game in sortedVisibleGames"
-            :key="game.id"
-            :game="game"
-            :now="now"
-            :draggable="false"
-            @toggle="handleToggle"
-            @edit="handleOpenEdit"
-            @toggle-mute="handleToggleMute"
-            @toggle-hidden="handleToggleHidden"
-          />
-        </ul>
+          <VueDraggable
+            v-if="sortMode === 'manual'"
+            v-model="draggableGames"
+            tag="ul"
+            role="list"
+            class="game-grid"
+            handle=".drag-handle"
+            :animation="180"
+            ghost-class="drag-ghost"
+          >
+            <GameCard
+              v-for="game in draggableGames"
+              :key="game.id"
+              :game="game"
+              :now="now"
+              :draggable="true"
+              @toggle="handleToggle"
+              @edit="handleOpenEdit"
+              @toggle-mute="handleToggleMute"
+              @toggle-hidden="handleToggleHidden"
+            />
+          </VueDraggable>
+
+          <ul v-else role="list" class="game-grid">
+            <GameCard
+              v-for="game in sortedVisibleGames"
+              :key="game.id"
+              :game="game"
+              :now="now"
+              :draggable="false"
+              @toggle="handleToggle"
+              @edit="handleOpenEdit"
+              @toggle-mute="handleToggleMute"
+              @toggle-hidden="handleToggleHidden"
+            />
+          </ul>
+        </template>
       </template>
     </main>
 
@@ -262,42 +284,66 @@ async function handleDelete({ id, done, fail }) {
 }
 
 .dashboard-main {
-  padding-block: 1.5rem 3rem;
+  padding-block: 1rem 2.5rem;
 }
 
-.guest-banner {
+@media (max-width: 639px) {
+  .dashboard-main {
+    padding-bottom: calc(5.25rem + env(safe-area-inset-bottom, 0px));
+  }
+}
+
+.guest-strip {
   display: flex;
-  flex-wrap: wrap;
   align-items: center;
   justify-content: space-between;
-  gap: 0.75rem 1rem;
-  margin-bottom: 1.25rem;
-  padding: 0.875rem 1rem;
-  border-radius: 0.875rem;
+  gap: 0.5rem;
+  margin-bottom: 0.875rem;
+  padding: 0.375rem 0.5rem 0.375rem 0.75rem;
+  border-radius: 0.5rem;
   background: var(--surface);
   border: 1px solid var(--border);
 }
 
 .guest-text {
   margin: 0;
-  flex: 1 1 20rem;
-  font-size: 0.9rem;
-  color: var(--text-muted);
+  font-size: 0.8125rem;
+  color: var(--text-secondary);
 }
 
-.guest-text strong {
-  color: var(--text);
+.guest-link {
+  border: 0;
+  background: transparent;
+  padding: 0.25rem;
+  margin-inline-start: 0.25rem;
+  color: var(--accent);
+  font-weight: 600;
+  cursor: pointer;
+  text-decoration: underline;
+  text-underline-offset: 2px;
 }
 
-.guest-actions {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
+.guest-link:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
 }
 
 .guest-dismiss {
-  min-inline-size: 2.75rem;
-  padding-inline: 0.65rem;
+  flex-shrink: 0;
+  min-inline-size: max(2rem, var(--target-size));
+  min-block-size: max(2rem, var(--target-size));
+  border: 0;
+  border-radius: 0.375rem;
+  background: transparent;
+  color: var(--text-muted);
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+}
+
+.guest-dismiss:hover {
+  background: var(--surface-raised);
+  color: var(--text);
 }
 
 .banner-error {
@@ -307,6 +353,14 @@ async function handleDelete({ id, done, fail }) {
   background: color-mix(in srgb, var(--danger) 12%, var(--surface));
   color: var(--danger);
   border: 1px solid color-mix(in srgb, var(--danger) 35%, var(--border));
+  font-size: 0.875rem;
+}
+
+.all-done-note {
+  margin: 0 0 0.75rem;
+  font-size: 0.8125rem;
+  font-weight: 500;
+  color: var(--done-text);
 }
 
 .empty-state {
@@ -327,8 +381,8 @@ async function handleDelete({ id, done, fail }) {
   margin: 0;
   padding: 0;
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(min(100%, 22rem), 1fr));
-  gap: 1rem;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 21.5rem), 1fr));
+  gap: 0.75rem;
 }
 
 :deep(.drag-ghost) {
