@@ -11,6 +11,7 @@
     "format": "prettier --write src/ scripts/ worker/",
     "test": "vitest run",
     "remind": "node scripts/remind.mjs",
+    "watch": "node scripts/watch-games.mjs",
     "deploy": "vite build && gh-pages -d dist"
   },
   "dependencies": {

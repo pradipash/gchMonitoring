@@ -12,6 +12,7 @@ Live app: <https://pradipash.github.io/gchMonitoring/>
 - **Custom ordering & sorting**: Drag games by their handle to reorder (synced across devices), or switch to **Soonest reset** to see uncompleted games due soonest first.
 - **Theme toggle**: Follows your OS light/dark preference by default, with a manual System / Light / Dark override per device.
 - **Discord reminders**: A Cloudflare Worker cron trigger (`*/10 * * * *`) checks every 10 minutes and sends one grouped Discord message per reset window for games you haven't finished yet (free tier, no credit card required).
+- **PC auto-check (optional)**: Run `npm run watch` on your Windows PC and turn on **Auto-check** in the header menu so the open web tab automatically marks games Done after ~1 minute of running and shows an in-site toast (with Undo).
 
 ## First-Time Setup
 
@@ -44,6 +45,7 @@ You can test the trigger immediately from **Cloudflare Dashboard → Workers & P
 ```sh
 npm install
 npm run dev       # Start dev server
+npm run watch     # Start local Windows game-process watcher for PC auto-check
 npm test          # Run unit tests (Vitest)
 npm run lint      # Lint with ESLint
 npm run build     # Production build + PWA service worker

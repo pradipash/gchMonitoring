@@ -12,15 +12,29 @@ const props = defineProps({
   doneCount: { type: Number, default: 0 },
   totalCount: { type: Number, default: 0 },
   hiddenCount: { type: Number, default: 0 },
+  watcherEnabled: { type: Boolean, default: false },
+  watcherStatus: { type: String, default: 'off' },
+  watcherPending: { type: Array, default: () => [] },
+  browserNotifEnabled: { type: Boolean, default: false },
+  notifPermission: { type: String, default: 'default' },
 })
 
-const emit = defineEmits(['update:sortMode', 'sign-in', 'sign-out', 'add-game'])
+const emit = defineEmits([
+  'update:sortMode',
+  'sign-in',
+  'sign-out',
+  'add-game',
+  'toggle-watcher',
+  'toggle-browser-notif',
+])
 
 const { formattedTime } = useNow()
 const { preference, cycleTheme } = useTheme()
 
 const copiedUid = ref(false)
+const copiedWatchCmd = ref(false)
 let copyTimer = null
+let copyWatchTimer = null
 
 const syncState = computed(() => {
   if (!props.user) return { key: 'guest', label: 'Guest' }
@@ -52,6 +66,25 @@ async function copyUid() {
     copiedUid.value = false
   }
 }
+
+async function copyWatchCmd() {
+  try {
+    await navigator.clipboard.writeText('npm run watch')
+    copiedWatchCmd.value = true
+    clearTimeout(copyWatchTimer)
+    copyWatchTimer = setTimeout(() => {
+      copiedWatchCmd.value = false
+    }, 2000)
+  } catch {
+    copiedWatchCmd.value = false
+  }
+}
+
+const watcherStatusLabel = computed(() => {
+  if (!props.watcherEnabled || props.watcherStatus === 'off') return 'Off'
+  if (props.watcherStatus === 'connected') return 'Connected'
+  return 'Watcher offline'
+})
 </script>
 
 <template>
@@ -75,6 +108,90 @@ async function copyUid() {
         </div>
 
         <div class="header-actions">
+          <button
+            type="button"
+            class="btn header-icon-btn watcher-btn"
+            popovertarget="watcher-popover"
+            :aria-label="`PC auto-check: ${watcherStatusLabel}`"
+            :title="`PC auto-check: ${watcherStatusLabel}`"
+          >
+            <span
+              class="watcher-dot"
+              :class="`is-${watcherStatus}`"
+              aria-hidden="true"
+            ></span>
+            <svg
+              aria-hidden="true"
+              viewBox="0 0 24 24"
+              width="18"
+              height="18"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="1.5"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            >
+              <rect x="2" y="3" width="20" height="14" rx="2" />
+              <path d="M8 21h8m-4-4v4" />
+              <path d="m9 10 2 2 4-4" />
+            </svg>
+            <span class="desktop-only">Auto-check</span>
+          </button>
+
+          <div id="watcher-popover" popover="auto" class="anchored-popover watcher-popover">
+            <div class="watcher-head">
+              <strong>PC Auto-check</strong>
+              <span class="sync-status" :class="`is-watcher-${watcherStatus}`">
+                <span class="status-dot" aria-hidden="true"></span>
+                {{ watcherStatusLabel }}
+              </span>
+            </div>
+
+            <label class="popover-check" for="watcher-enabled-toggle">
+              <input
+                id="watcher-enabled-toggle"
+                type="checkbox"
+                :checked="watcherEnabled"
+                @change="emit('toggle-watcher', $event.target.checked)"
+              />
+              <span>Auto-tick running PC games (after 1 min)</span>
+            </label>
+
+            <label class="popover-check" for="watcher-notif-toggle">
+              <input
+                id="watcher-notif-toggle"
+                type="checkbox"
+                :checked="browserNotifEnabled"
+                :disabled="notifPermission === 'unsupported' || notifPermission === 'denied'"
+                @change="emit('toggle-browser-notif', $event.target.checked)"
+              />
+              <span>Notify when tab is in background</span>
+            </label>
+
+            <p v-if="notifPermission === 'denied'" class="watcher-hint">
+              Browser notifications are blocked for this site in browser settings.
+            </p>
+
+            <div v-if="watcherEnabled && watcherStatus === 'offline'" class="uid-details">
+              <span class="watcher-hint">Run on your Windows PC to connect:</span>
+              <div class="uid-row">
+                <code class="uid-code">npm run watch</code>
+                <button type="button" class="btn btn-compact" @click="copyWatchCmd">
+                  {{ copiedWatchCmd ? 'Copied' : 'Copy' }}
+                </button>
+              </div>
+              <span class="visually-hidden" aria-live="polite">
+                {{ copiedWatchCmd ? 'Watch command copied to clipboard' : '' }}
+              </span>
+            </div>
+
+            <div v-else-if="watcherPending.length > 0" class="watcher-pending">
+              <p v-for="item in watcherPending" :key="item.id" class="watcher-hint">
+                Detecting <strong>{{ item.name }}</strong> ({{ Math.floor(item.runningMs / 1000) }}s / 60s)
+              </p>
+            </div>
+          </div>
+
           <button
             type="button"
             class="btn header-icon-btn"
@@ -190,7 +307,7 @@ async function copyUid() {
               <span class="desktop-only">{{ user.displayName?.split(' ')[0] || 'Account' }}</span>
             </button>
 
-            <div id="account-popover" popover="auto" class="account-popover">
+            <div id="account-popover" popover="auto" class="anchored-popover account-popover">
               <div class="account-info">
                 <strong>{{ user.displayName || 'Signed in' }}</strong>
                 <span class="account-email">{{ user.email }}</span>
@@ -496,9 +613,9 @@ h1 {
   padding-inline: 0.875rem;
 }
 
-/* Account popover: anchor-positioned with progressive fallback */
-.account-popover {
-  width: min(calc(100vw - 1.5rem), 20rem);
+/* Anchored popovers: anchor-positioned with progressive fallback */
+.anchored-popover {
+  width: min(calc(100vw - 1.5rem), 21rem);
   padding: 1rem;
   border-radius: 0.875rem;
   border: 1px solid var(--border);
@@ -507,14 +624,14 @@ h1 {
   box-shadow: 0 16px 40px rgba(0, 0, 0, 0.28);
 }
 
-.account-popover:is(:popover-open, .\:popover-open) {
+.anchored-popover:is(:popover-open, .\:popover-open) {
   display: flex;
   flex-direction: column;
   gap: 0.75rem;
 }
 
 @supports (position-area: block-end) {
-  .account-popover {
+  .anchored-popover {
     inset: auto;
     margin: 0.375rem 0 0;
     position-area: block-end span-inline-start;
@@ -523,18 +640,84 @@ h1 {
 }
 
 @supports not (position-area: block-end) {
-  .account-popover {
+  .anchored-popover {
     position: fixed;
     inset: 3.75rem 1rem auto auto;
     margin: 0;
   }
 
   @media (max-width: 639px) {
-    .account-popover {
+    .anchored-popover {
       inset: auto 0.75rem calc(4.75rem + env(safe-area-inset-bottom, 0px)) 0.75rem;
       width: auto;
     }
   }
+}
+
+.watcher-btn {
+  position: relative;
+}
+
+.watcher-dot {
+  width: 0.4375rem;
+  height: 0.4375rem;
+  border-radius: 999px;
+  background: var(--text-muted);
+}
+
+.watcher-dot.is-connected {
+  background: var(--done-text);
+}
+
+.watcher-dot.is-offline {
+  background: var(--urgent-text);
+}
+
+.watcher-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
+.sync-status.is-watcher-connected {
+  color: var(--done-text);
+}
+
+.sync-status.is-watcher-offline {
+  color: var(--urgent-text);
+}
+
+.sync-status.is-watcher-off {
+  color: var(--text-muted);
+}
+
+.popover-check {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  min-block-size: var(--target-size);
+  font-size: 0.8125rem;
+  color: var(--text-secondary);
+  cursor: pointer;
+}
+
+.popover-check input[type='checkbox'] {
+  width: 1.0625rem;
+  height: 1.0625rem;
+  flex-shrink: 0;
+}
+
+.watcher-hint {
+  margin: 0;
+  font-size: 0.75rem;
+  color: var(--text-muted);
+}
+
+.watcher-pending {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
 }
 
 .account-info {

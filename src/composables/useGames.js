@@ -157,21 +157,35 @@ export function useGames(userRef) {
     saveGuestGames(games.value)
   }
 
-  async function toggleDone(game, now = new Date()) {
+  async function setDoneState(game, nextDone, now = new Date()) {
     if (!game?.id) return
     const uid = userRef.value?.uid
-    const doneNow = isDone(game, now)
 
     if (!uid) {
       updateGuestGame(game.id, {
-        lastDoneAt: doneNow ? null : now.toISOString(),
+        lastDoneAt: nextDone ? now.toISOString() : null,
       })
       return
     }
 
     await updateDoc(doc(db, 'users', uid, 'games', game.id), {
-      lastDoneAt: doneNow ? null : serverTimestamp(),
+      lastDoneAt: nextDone ? serverTimestamp() : null,
     })
+  }
+
+  async function toggleDone(game, now = new Date()) {
+    if (!game?.id) return
+    await setDoneState(game, !isDone(game, now), now)
+  }
+
+  async function markDone(game, now = new Date()) {
+    if (!game?.id || isDone(game, now)) return
+    await setDoneState(game, true, now)
+  }
+
+  async function markNotDone(game) {
+    if (!game?.id) return
+    await setDoneState(game, false)
   }
 
   async function toggleMute(game) {
@@ -286,6 +300,8 @@ export function useGames(userRef) {
     offline,
     error,
     toggleDone,
+    markDone,
+    markNotDone,
     toggleMute,
     toggleHidden,
     saveGame,

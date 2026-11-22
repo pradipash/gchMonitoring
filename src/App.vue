@@ -2,11 +2,13 @@
 import { computed, ref } from 'vue'
 import { VueDraggable } from 'vue-draggable-plus'
 import AppHeader from '@/components/AppHeader.vue'
+import AutoCheckToast from '@/components/AutoCheckToast.vue'
 import GameCard from '@/components/GameCard.vue'
 import GameEditorDialog from '@/components/GameEditorDialog.vue'
 import { useAuth } from '@/composables/useAuth'
 import { useGames } from '@/composables/useGames'
 import { useNow } from '@/composables/useNow'
+import { useProcessWatcher } from '@/composables/useProcessWatcher'
 import { isDone, msUntilReset } from '@/lib/reset'
 
 const { user, authReady, authError, signingIn, signIn, signOut } = useAuth()
@@ -18,6 +20,8 @@ const {
   offline,
   error,
   toggleDone,
+  markDone,
+  markNotDone,
   toggleMute,
   toggleHidden,
   saveGame,
@@ -28,9 +32,39 @@ const { now } = useNow()
 
 const sortMode = ref('manual')
 const editorRef = ref(null)
+const toastRef = ref(null)
 const savingEditor = ref(false)
 const actionError = ref('')
 const guestBannerDismissed = ref(false)
+
+const {
+  enabled: watcherEnabled,
+  browserNotifEnabled,
+  notifPermission,
+  status: watcherStatus,
+  pendingMatches: watcherPending,
+  setEnabled: setWatcherEnabled,
+  setBrowserNotifEnabled,
+  suppressForCycle,
+} = useProcessWatcher({
+  games,
+  now,
+  onAutoCheck: async (game, entry) => {
+    await markDone(game, now.value)
+    const detectedLabel =
+      entry.title && entry.title.toLowerCase() !== entry.process.toLowerCase()
+        ? entry.title
+        : entry.process
+    toastRef.value?.pushToast({
+      title: `${game.name} auto-checked`,
+      detail: `Detected ${detectedLabel}`,
+      onUndo: async () => {
+        suppressForCycle(game, now.value)
+        await markNotDone(game)
+      },
+    })
+  },
+})
 
 const visibleGames = computed(() => games.value.filter((g) => !g.hidden))
 const hiddenGames = computed(() => games.value.filter((g) => g.hidden))
@@ -66,8 +100,12 @@ const draggableGames = computed({
 
 async function handleToggle(game) {
   actionError.value = ''
+  const wasDone = isDone(game, now.value)
   try {
     await toggleDone(game, now.value)
+    if (wasDone) {
+      suppressForCycle(game, now.value)
+    }
   } catch (err) {
     actionError.value = err?.message || 'Could not update game status.'
   }
@@ -139,9 +177,16 @@ async function handleDelete({ id, done, fail }) {
       :done-count="doneCount"
       :total-count="visibleGames.length"
       :hidden-count="hiddenGames.length"
+      :watcher-enabled="watcherEnabled"
+      :watcher-status="watcherStatus"
+      :watcher-pending="watcherPending"
+      :browser-notif-enabled="browserNotifEnabled"
+      :notif-permission="notifPermission"
       @sign-in="signIn"
       @sign-out="signOut"
       @add-game="handleOpenCreate"
+      @toggle-watcher="setWatcherEnabled"
+      @toggle-browser-notif="setBrowserNotifEnabled"
     />
 
     <main class="container dashboard-main">
@@ -272,6 +317,8 @@ async function handleDelete({ id, done, fail }) {
       @save="handleSave"
       @delete="handleDelete"
     />
+
+    <AutoCheckToast ref="toastRef" />
   </template>
 </template>
 
