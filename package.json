@@ -12,6 +12,7 @@
     "test": "vitest run",
     "remind": "node scripts/remind.mjs",
     "watch": "node scripts/watch-games.mjs",
+    "build:watcher": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/build-watcher-exe.ps1",
     "deploy": "vite build && gh-pages -d dist"
   },
   "dependencies": {
